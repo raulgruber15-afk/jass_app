@@ -174,6 +174,12 @@ class SoloRating {
   int get value => JassRating.display(skill.mu);
   bool get provisional => games < JassRating.provisionalGames;
 
+  /// Rangstufe (erst nach den vorläufigen Partien sinnvoll).
+  RankTier get tier => RankTier.of(value);
+
+  /// Mindestniederlage für ein aufgegebenes Spiel, in Strichen.
+  static const abandonMargin = -3.0;
+
   /// Eingemessene Stärke der Computerstufen (tool/rating_kalibrierung.dart,
   /// 80 Partien je Paarung bis 2500, Nov. 2026): Anfänger ≈ 760,
   /// Stammtisch = 1000, Profi ≈ 1160. Streuung je Partie ≈ 2.0–2.5 Striche.
@@ -191,14 +197,17 @@ class SoloRating {
     required int oppPoints,
     required int target,
     required bool won,
+    bool abandoned = false,
   }) {
     final bot = botSkill[level] ?? botSkill['stammtisch']!;
-    final margin = JassRating.marginFromPoints(
+    var margin = JassRating.marginFromPoints(
       ownPoints,
       oppPoints,
       target,
-      won: won,
+      won: won && !abandoned,
     );
+    // Aufgegeben zählt als Niederlage, mindestens so deutlich wie −3 Striche.
+    if (abandoned) margin = min(margin, abandonMargin);
     final (a, _) = JassRating.update(
       [skill, bot],
       [bot, bot],
@@ -231,4 +240,40 @@ class SoloRating {
     best: j['best'] as int?,
     lastChange: j['last'] as int?,
   );
+}
+
+/// Rangstufen der Jass-Wertung: die Kartenleiter des Schweizer Blatts,
+/// vom Sächsi bis zum Trumpf-Puur (eigene Namen, nicht von anderen Apps).
+///
+/// Stammtisch-Computer (1000) = Ober, Profi-Computer (≈1160) = Ass.
+class RankTier {
+  const RankTier(this.name, this.minValue, this.hint);
+  final String name;
+  final int minValue;
+
+  /// Kurze Erklärung für die Anzeige.
+  final String hint;
+
+  static const all = [
+    RankTier('Sächsi', -100000, 'Der Anfang jeder Jasskarriere'),
+    RankTier('Sibni', 700, 'Erste Stiche sitzen'),
+    RankTier('Achti', 760, 'Auf Augenhöhe mit dem Anfänger-Computer'),
+    RankTier('Nüni', 820, 'Die Regeln sitzen'),
+    RankTier('Banner', 880, 'Man zählt mit'),
+    RankTier('Under', 940, 'Knapp unter dem Stammtisch'),
+    RankTier('Ober', 1000, 'Stammtisch-Niveau'),
+    RankTier('König', 1060, 'Besser als der Stammtisch'),
+    RankTier('Ass', 1120, 'Auf Augenhöhe mit dem Profi-Computer'),
+    RankTier('Nell', 1180, 'Schlägt den Profi-Computer'),
+    RankTier('Puur', 1260, 'Der höchste Trumpf'),
+  ];
+
+  /// Stufe zur sichtbaren Wertung.
+  static RankTier of(int value) => all.lastWhere((t) => value >= t.minValue);
+
+  /// Nächste Stufe, oder null ganz oben.
+  RankTier? get next {
+    final i = all.indexOf(this);
+    return i + 1 < all.length ? all[i + 1] : null;
+  }
 }

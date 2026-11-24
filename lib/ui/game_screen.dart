@@ -1023,6 +1023,7 @@ class _RatingLine extends StatelessWidget {
       child: Column(
         children: [
           Text(
+            '${rating.provisional ? '' : '${rating.tier.name} · '}'
             'Jass-Wertung ${rating.value} ($sign${d.abs()})',
             style: TextStyle(
               color: d >= 0 ? JassColors.navy : JassColors.red,
