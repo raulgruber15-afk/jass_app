@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../engine/cards.dart';
 import '../engine/game_mode.dart';
+import '../engine/rating.dart';
 import '../engine/schieber.dart';
 import '../net/net_game.dart';
 import 'card_widget.dart';
@@ -91,14 +92,34 @@ class _GameScreenState extends State<GameScreen> {
           ctrl.level.name,
           won: g.winnerTeam == ctrl.viewer % 2,
         );
+        _recordRating();
       }
     } else {
       Storage.saveGame(snap);
     }
   }
 
+  /// Jass-Wertung nach dieser Partie, für die Abrechnung.
+  SoloRating? _rating;
+
+  Future<void> _recordRating() async {
+    final g = ctrl.game;
+    final team = ctrl.viewer % 2;
+    final before = await Storage.loadSoloRating();
+    final after = before.afterGame(
+      level: ctrl.level.name,
+      ownPoints: g.totals[team],
+      oppPoints: g.totals[1 - team],
+      target: g.settings.targetPoints,
+      won: g.winnerTeam == team,
+    );
+    await Storage.saveSoloRating(after);
+    if (mounted) setState(() => _rating = after);
+  }
+
   void _newGame() {
     _recorded = false;
+    _rating = null;
     ctrl = GameController(
       settings: widget.settings,
       level: widget.level,
@@ -218,6 +239,7 @@ class _GameScreenState extends State<GameScreen> {
               Positioned.fill(
                 child: _ResultPanel(
                   ctrl: ctrl,
+                  rating: _rating,
                   onNewGame: () => setState(() {
                     if (widget.session != null) {
                       ctrl.restart();
@@ -816,10 +838,12 @@ class _TrumpChooser extends StatelessWidget {
 class _ResultPanel extends StatelessWidget {
   const _ResultPanel({
     required this.ctrl,
+    this.rating,
     required this.onNewGame,
     required this.onMenu,
   });
   final GameController ctrl;
+  final SoloRating? rating;
   final VoidCallback onNewGame;
   final VoidCallback onMenu;
 
@@ -945,6 +969,7 @@ class _ResultPanel extends StatelessWidget {
               row('Diese Runde', r.scoreFor(0), r.scoreFor(1), bold: true),
               row('Total', g.totals[0], g.totals[1], bold: true),
             ],
+            if (over && rating != null) _RatingLine(rating: rating!),
             const SizedBox(height: 18),
             if (!over && ctrl.isClient)
               const Text(
@@ -979,6 +1004,39 @@ class _ResultPanel extends StatelessWidget {
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// «Jass-Wertung 1043 (+12)» unter der Schlussabrechnung.
+class _RatingLine extends StatelessWidget {
+  const _RatingLine({required this.rating});
+  final SoloRating rating;
+
+  @override
+  Widget build(BuildContext context) {
+    final d = rating.lastChange ?? 0;
+    final sign = d > 0 ? '+' : (d < 0 ? '−' : '±');
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Column(
+        children: [
+          Text(
+            'Jass-Wertung ${rating.value} ($sign${d.abs()})',
+            style: TextStyle(
+              color: d >= 0 ? JassColors.navy : JassColors.red,
+              fontSize: 17,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          if (rating.provisional)
+            Text(
+              'Vorläufig: noch ${JassRating.provisionalGames - rating.games} '
+              'Partien bis zur festen Wertung',
+              style: const TextStyle(color: Colors.black54, fontSize: 13),
+            ),
+        ],
       ),
     );
   }
