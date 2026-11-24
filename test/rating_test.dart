@@ -129,6 +129,43 @@ void main() {
     expect(back.value, r.value);
     expect(back.games, r.games);
   });
+
+  test('Aufgegeben zählt als deutliche Niederlage', () {
+    const r = SoloRating();
+    final ab = r.afterGame(
+      level: 'stammtisch',
+      ownPoints: 1200,
+      oppPoints: 1000,
+      target: 2500,
+      won: true, // lag sogar vorne
+      abandoned: true,
+    );
+    final lost = r.afterGame(
+      level: 'stammtisch',
+      ownPoints: 2000,
+      oppPoints: 2500,
+      target: 2500,
+      won: false,
+    );
+    expect(ab.lastChange, lessThan(0));
+    expect(ab.value, lessThanOrEqualTo(lost.value));
+  });
+
+  test('Rangstufen: Kartenleiter vom Sächsi bis zum Puur', () {
+    expect(RankTier.of(500).name, 'Sächsi');
+    expect(RankTier.of(1000).name, 'Ober');
+    expect(RankTier.of(1059).name, 'Ober');
+    expect(RankTier.of(1160).name, 'Ass');
+    expect(RankTier.of(2000).name, 'Puur');
+    expect(RankTier.of(2000).next, isNull);
+    expect(RankTier.of(1000).next!.name, 'König');
+    for (var i = 1; i < RankTier.all.length; i++) {
+      expect(
+        RankTier.all[i].minValue,
+        greaterThan(RankTier.all[i - 1].minValue),
+      );
+    }
+  });
 }
 
 double _gauss(Random r) {

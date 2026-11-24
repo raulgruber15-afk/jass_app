@@ -149,10 +149,11 @@ class _HomeScreenState extends State<HomeScreen> {
         ? 'Noch keine Partie gegen diese Stufe gespielt.'
         : 'Deine Bilanz: ${l[0]} gewonnen, ${l[1]} verloren';
     if (rating.games == 0) return bilanz;
-    final wert =
-        'Jass-Wertung ${rating.value}'
-        '${rating.provisional ? ' (vorläufig)' : ''}'
-        '${rating.best != null ? ' · Bestwert ${rating.best}' : ''}';
+    final next = rating.tier.next;
+    final wert = rating.provisional
+        ? 'Jass-Wertung ${rating.value} (vorläufig)'
+        : 'Rang ${rating.tier.name} · Jass-Wertung ${rating.value}'
+              '${next != null ? ' (${next.name} ab ${next.minValue})' : ''}';
     return '$wert\n$bilanz';
   }
 
@@ -249,7 +250,72 @@ class _HomeScreenState extends State<HomeScreen> {
         .push(MaterialPageRoute(builder: (_) => JoinScreen(name: _myName)));
   }
 
-  void _play() {
+  /// Ein angefangenes Spiel allein gegen den Computer, das nicht fertig
+  /// gespielt wird, zählt als Niederlage (Entscheid Raul, 24.11.2026).
+  /// Ausnahme: Es wurde noch keine Runde fertig gespielt.
+  ({String level, int own, int opp, int target})? _abandonable() {
+    try {
+      final snap = saved!;
+      final seats = snap['seats'] as List;
+      final humanSeats = [
+        for (var i = 0; i < seats.length; i++)
+          if ((seats[i] as Map)['human'] == true) i,
+      ];
+      if (humanSeats.length != 1) return null; // nur allein gegen Computer
+      final g = snap['game'] as Map;
+      if ((g['history'] as List).isEmpty) return null;
+      final totals = (g['totals'] as List).cast<int>();
+      final team = humanSeats.first % 2;
+      return (
+        level: BotLevel.values[snap['level'] as int].name,
+        own: totals[team],
+        opp: totals[1 - team],
+        target: g['target'] as int,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _play() async {
+    final ab = saved == null ? null : _abandonable();
+    if (ab != null) {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (c) => AlertDialog(
+          title: const Text('Angefangenes Spiel aufgeben?'),
+          content: const Text(
+            'Das angefangene Spiel zählt als Niederlage, '
+            'auch für deine Jass-Wertung.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(c, false),
+              child: const Text('Abbrechen'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(c, true),
+              child: const Text('Aufgeben'),
+            ),
+          ],
+        ),
+      );
+      if (ok != true || !mounted) return;
+      await Storage.recordResult(ab.level, won: false);
+      final r = await Storage.loadSoloRating();
+      await Storage.saveSoloRating(
+        r.afterGame(
+          level: ab.level,
+          ownPoints: ab.own,
+          oppPoints: ab.opp,
+          target: ab.target,
+          won: false,
+          abandoned: true,
+        ),
+      );
+      await Storage.clearGame();
+      if (!mounted) return;
+    }
     _saveSettings();
     _open(
       GameScreen(
