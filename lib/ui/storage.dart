@@ -2,11 +2,14 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../engine/rating.dart';
+
 /// Speichert Einstellungen und das laufende Spiel nur auf dem Gerät.
 class Storage {
   static const _gameKey = 'laufendes_spiel_v1';
   static const _settingsKey = 'einstellungen_v1';
   static const _statsKey = 'statistik_v1';
+  static const _soloRatingKey = 'wertung_allein_v1';
 
   static Future<SharedPreferences?> _prefs() async {
     try {
@@ -67,4 +70,18 @@ class Storage {
     stats[level] = l;
     await _write(_statsKey, stats);
   }
+
+  /// Jass-Wertung allein gegen den Computer.
+  static Future<SoloRating> loadSoloRating() async {
+    final raw = await _read(_soloRatingKey);
+    if (raw == null) return const SoloRating();
+    try {
+      return SoloRating.fromJson(raw);
+    } catch (_) {
+      return const SoloRating();
+    }
+  }
+
+  static Future<void> saveSoloRating(SoloRating r) =>
+      _write(_soloRatingKey, r.toJson());
 }

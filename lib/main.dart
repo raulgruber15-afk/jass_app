@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'engine/rating.dart';
 import 'engine/schieber.dart';
 import 'ui/card_widget.dart';
 import 'ui/game_controller.dart';
@@ -69,6 +70,9 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Bilanz gegen den Computer je Stufe: [gewonnen, verloren].
   Map<String, List<int>> stats = {};
 
+  /// Jass-Wertung allein gegen den Computer.
+  SoloRating rating = const SoloRating();
+
   @override
   void initState() {
     super.initState();
@@ -79,9 +83,11 @@ class _HomeScreenState extends State<HomeScreen> {
     final s = await Storage.loadSettings();
     final g = await Storage.loadGame();
     final st = await Storage.loadStats();
+    final rt = await Storage.loadSoloRating();
     if (!mounted) return;
     setState(() {
       stats = st;
+      rating = rt;
       if (s != null) {
         target = s['target'] as int? ?? target;
         multipliers = s['multipliers'] as bool? ?? multipliers;
@@ -139,18 +145,27 @@ class _HomeScreenState extends State<HomeScreen> {
 
   String _statsLine() {
     final l = stats[level.name];
-    if (l == null) return 'Noch keine Partie gegen diese Stufe gespielt.';
-    return 'Deine Bilanz: ${l[0]} gewonnen, ${l[1]} verloren';
+    final bilanz = l == null
+        ? 'Noch keine Partie gegen diese Stufe gespielt.'
+        : 'Deine Bilanz: ${l[0]} gewonnen, ${l[1]} verloren';
+    if (rating.games == 0) return bilanz;
+    final wert =
+        'Jass-Wertung ${rating.value}'
+        '${rating.provisional ? ' (vorläufig)' : ''}'
+        '${rating.best != null ? ' · Bestwert ${rating.best}' : ''}';
+    return '$wert\n$bilanz';
   }
 
   Future<void> _open(GameScreen screen) async {
     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
     final g = await Storage.loadGame();
     final st = await Storage.loadStats();
+    final rt = await Storage.loadSoloRating();
     if (mounted) {
       setState(() {
         saved = g;
         stats = st;
+        rating = rt;
       });
     }
   }
