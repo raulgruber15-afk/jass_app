@@ -414,6 +414,7 @@ class SchieberGame {
         playedCards: List.unmodifiable(playedCards),
         legal: legalFor(seat),
         handSizes: [for (final h in hands) h.length],
+        pastTricks: List.unmodifiable(tricks),
       );
 }
 
@@ -430,6 +431,7 @@ class PlayerView {
     required this.playedCards,
     required this.legal,
     required this.handSizes,
+    this.pastTricks = const [],
   });
 
   final int seat;
@@ -442,4 +444,7 @@ class PlayerView {
   final List<JassCard> playedCards;
   final List<JassCard> legal;
   final List<int> handSizes;
+
+  /// Fertige Stiche dieser Runde (wer welche Karte gespielt hat).
+  final List<CompletedTrick> pastTricks;
 }

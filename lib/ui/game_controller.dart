@@ -5,9 +5,10 @@ import 'package:flutter/foundation.dart';
 import '../engine/bot.dart';
 import '../engine/cards.dart';
 import '../engine/game_mode.dart';
+import '../engine/profi_bot.dart';
 import '../engine/schieber.dart';
 
-enum BotLevel { anfaenger, stammtisch }
+enum BotLevel { anfaenger, stammtisch, profi }
 
 /// Wer an einem Platz sitzt.
 class SeatSetup {
@@ -40,7 +41,11 @@ class GameController extends ChangeNotifier {
     for (var s = 0; s < 4; s++) {
       bots[s] = seats[s].human
           ? null
-          : (level == BotLevel.anfaenger ? RandomBot() : RuleBot());
+          : switch (level) {
+              BotLevel.anfaenger => RandomBot(),
+              BotLevel.stammtisch => RuleBot(),
+              BotLevel.profi => ProfiBot(),
+            };
     }
     viewer = seats.indexWhere((s) => s.human);
     handHidden = isMultiplayer;

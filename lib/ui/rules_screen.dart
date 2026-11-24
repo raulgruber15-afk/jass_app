@@ -47,6 +47,12 @@ class RulesScreen extends StatelessWidget {
                   'Neuner 150, sonst 100) werden automatisch gewiesen. Nur das Team '
                   'mit dem höchsten Weis zählt. Stöck (König und Dame im Trumpf) '
                   'gibt 20 Punkte.'),
+          section('Gegner',
+              'Anfänger spielt zufällige erlaubte Karten. Stammtisch spielt nach '
+                  'Faustregeln (Trumpf ziehen, Böcke spielen, Partner schmieren). '
+                  'Profi merkt sich alle gespielten Karten, erkennt, wer welche Farbe '
+                  'nicht mehr hat, und rechnet vor jedem Zug Hunderte mögliche '
+                  'Spielverläufe durch. Kein Gegner sieht deine Karten.'),
           section('Offline',
               'Das Spiel braucht kein Internet und sammelt keine Daten.'),
         ],

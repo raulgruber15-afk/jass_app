@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:jass/engine/bot.dart';
 import 'package:jass/engine/cards.dart';
 import 'package:jass/engine/game_mode.dart';
+import 'package:jass/engine/profi_bot.dart';
 import 'package:jass/engine/rules.dart';
 import 'package:jass/engine/schieber.dart';
 
@@ -220,6 +221,26 @@ void main() {
         randomTeam += g.totals[1];
       }
       expect(ruleTeam, greaterThan(randomTeam * 1.3));
+    });
+
+    test('Profi schlägt Stammtisch (gleiche Karten, Teams vertauscht)', () {
+      var profi = 0;
+      var rule = 0;
+      for (var i = 0; i < 12; i++) {
+        for (final pt in [0, 1]) {
+          final g = SchieberGame(
+              settings: const SchieberSettings(targetPoints: 1 << 30, useMultipliers: false),
+              random: Random(100 + i));
+          g.start();
+          final bots = List<JassBot>.generate(4, (s) => teamOf(s) == pt
+              ? ProfiBot(rng: Random(s), budget: 150)
+              : RuleBot(Random(s)));
+          _playRound(g, bots);
+          profi += g.totals[pt];
+          rule += g.totals[1 - pt];
+        }
+      }
+      expect(profi, greaterThan(rule));
     });
 
     test('Stöck wird gezählt', () {

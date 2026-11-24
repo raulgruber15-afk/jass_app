@@ -164,9 +164,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     const Text('Gegner', style: labelStyle),
                     const SizedBox(height: 6),
                     SegmentedButton<BotLevel>(
+                      showSelectedIcon: false,
                       segments: const [
                         ButtonSegment(value: BotLevel.anfaenger, label: Text('Anfänger')),
                         ButtonSegment(value: BotLevel.stammtisch, label: Text('Stammtisch')),
+                        ButtonSegment(value: BotLevel.profi, label: Text('Profi')),
                       ],
                       selected: {level},
                       onSelectionChanged: (s) => setState(() => level = s.first),
