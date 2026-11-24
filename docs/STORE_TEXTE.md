@@ -19,12 +19,16 @@ Spiel den Schieber mit deinem Computer-Partner gegen zwei Computer-Gegner:
 • Match-Bonus und letzter Stich
 • Punkteziel 1000, 1500 oder 2500
 • Mit oder ohne Multiplikatoren
-• Zwei Gegner-Stärken: Anfänger und Stammtisch
+• Drei Gegner-Stärken: Anfänger, Stammtisch und Profi
+• Spielstand wird gespeichert, Jasstafel mit allen Runden
 • Erlaubte Karten werden hervorgehoben – ideal zum Lernen
 
 Ohne Werbung, ohne Konto, ohne Datensammlung.
 
-Bald: Spiel mit Freunden am selben Handy und im selben WLAN.
+Mit Freunden spielen:
+• Jeder auf seinem Handy – im gleichen WLAN oder Hotspot, ohne Internet. Beitreten per QR-Code, iPhone und Android gemischt.
+• Oder ein Handy für alle, das weitergereicht wird.
+Freie Plätze übernimmt der Computer.
 
 ## Stichwörter Apple (max. 100 Zeichen)
 jass,schieber,kartenspiel,schweiz,stammtisch,trumpf,offline,obenabe,undenufe,karten
