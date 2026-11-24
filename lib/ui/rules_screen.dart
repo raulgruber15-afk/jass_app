@@ -77,8 +77,7 @@ class RulesScreen extends StatelessWidget {
               'Karten',
               'Auf der Startseite wählst du Schweizer Blatt (Eicheln, Schellen, '
                   'Rosen, Schilten) oder französisches Blatt (Kreuz, Karo, Herz, '
-                  'Pik). Die Regeln sind gleich. Schweizer Blatt: Openclipart, '
-                  'mariotomo, gemeinfrei.',
+                  'Pik). Die Regeln sind gleich.',
             ),
           section(
             'Offline',

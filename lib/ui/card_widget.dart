@@ -5,8 +5,8 @@ import '../engine/game_mode.dart';
 import 'theme.dart';
 
 /// Seitenverhältnis der Kartengrafiken des gewählten Blatts
-/// (Schweizer Blatt 500 × 780, französisches 500 × 809 Pixel).
-double get cardAspect => cardDeck == CardDeck.schweizer ? 500 / 780 : 500 / 809;
+/// (Schweizer Blatt 500 × 781, französisches 500 × 809 Pixel).
+double get cardAspect => cardDeck == CardDeck.schweizer ? 500 / 781 : 500 / 809;
 
 /// Ordner der Kartenbilder des gewählten Blatts.
 String get cardDir =>
@@ -35,7 +35,7 @@ class CardImage extends StatelessWidget {
   Widget build(BuildContext context) {
     final name = card?.assetName ?? 'rueckseite';
     final height = width / cardAspect;
-    Widget img = Image.asset(
+    final img = Image.asset(
       '$cardDir/$name.png',
       width: width,
       height: height,
@@ -43,57 +43,6 @@ class CardImage extends StatelessWidget {
       filterQuality: FilterQuality.medium,
       semanticLabel: card?.label ?? 'Karte verdeckt',
     );
-    // Die Bildkarten des Schweizer Blatts haben keine Ecke mit Wert.
-    // Damit man sie im aufgefächerten Blatt erkennt: kleines U / O / K.
-    final c = card;
-    if (cardDeck == CardDeck.schweizer &&
-        c != null &&
-        (c.rank == Rank.jack || c.rank == Rank.queen || c.rank == Rank.king)) {
-      final letter = switch (c.rank) {
-        Rank.jack => 'U',
-        Rank.queen => 'O',
-        _ => 'K',
-      };
-      img = Stack(
-        children: [
-          img,
-          Positioned(
-            left: width * 0.07,
-            top: height * 0.045,
-            child: Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: width * 0.035,
-                vertical: width * 0.005,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(width * 0.04),
-                border: Border.all(color: Colors.black54, width: 0.8),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    letter,
-                    style: TextStyle(
-                      fontSize: width * 0.15,
-                      height: 1.05,
-                      fontWeight: FontWeight.bold,
-                      color: c.suit.isRed ? JassColors.red : Colors.black,
-                    ),
-                  ),
-                  Image.asset(
-                    'assets/suits_ch/${c.suit.name}.png',
-                    width: width * 0.13,
-                    height: width * 0.13,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      );
-    }
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(width * 0.06),

@@ -8,8 +8,8 @@
 enum CardDeck { schweizer, franzoesisch }
 
 /// Schweizer Blatt in der App anbieten? Vorerst aus, bis ein passendes
-/// Kartenbild gefunden ist (Raul, 24.11.2026). Der Code ist fertig.
-const bool schweizerBlattFreigegeben = false;
+/// Kartenbild gefunden ist. Seit 24.11.2026 mit Rauls Set «Scharf».
+const bool schweizerBlattFreigegeben = true;
 
 /// Aktuell gewähltes Blatt (Einstellung auf der Startseite).
 CardDeck cardDeck = schweizerBlattFreigegeben
