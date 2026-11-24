@@ -42,6 +42,38 @@ class _HomeScreenState extends State<HomeScreen> {
   BotLevel level = BotLevel.stammtisch;
   bool fast = false;
 
+  /// false = allein gegen den Computer, true = mehrere Personen am Handy.
+  bool together = false;
+  final names = [
+    TextEditingController(text: 'Anna'),
+    TextEditingController(text: 'Vreni'),
+    TextEditingController(text: 'Sepp'),
+    TextEditingController(text: 'Ruedi'),
+  ];
+  final humans = [true, false, true, false];
+
+  static const seatLabels = ['Unten', 'Rechts', 'Gegenüber', 'Links'];
+
+  @override
+  void dispose() {
+    for (final c in names) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  List<SeatSetup> _seats() {
+    if (!together) return defaultSeats;
+    const fallback = ['Spieler 1', 'Spieler 2', 'Spieler 3', 'Spieler 4'];
+    return [
+      for (var i = 0; i < 4; i++)
+        SeatSetup(
+          name: names[i].text.trim().isEmpty ? fallback[i] : names[i].text.trim(),
+          human: i == 0 || humans[i],
+        ),
+    ];
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -57,6 +89,7 @@ class _HomeScreenState extends State<HomeScreen> {
         settings: SchieberSettings(targetPoints: target, useMultipliers: multipliers),
         level: level,
         fast: fast,
+        seats: _seats(),
       ),
     ));
   }
@@ -91,10 +124,29 @@ class _HomeScreenState extends State<HomeScreen> {
                             fontSize: 48,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 2)),
-                    const Text('Schieber gegen den Computer',
+                    const Text('Schieber – allein oder mit Freunden',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: JassColors.gold, fontSize: 16)),
                     const SizedBox(height: 28),
+                    SegmentedButton<bool>(
+                      segments: const [
+                        ButtonSegment(value: false, label: Text('Allein'), icon: Icon(Icons.person)),
+                        ButtonSegment(value: true, label: Text('Mit Freunden'), icon: Icon(Icons.groups)),
+                      ],
+                      selected: {together},
+                      onSelectionChanged: (s) => setState(() => together = s.first),
+                    ),
+                    if (together) ...[
+                      const SizedBox(height: 12),
+                      const Text(
+                          'Ein Handy für alle: Es wird vor jedem Zug weitergegeben. '
+                          'Unten und Gegenüber spielen zusammen, Rechts und Links ebenfalls. '
+                          'Leere Plätze übernimmt der Computer.',
+                          style: TextStyle(color: Colors.white70, fontSize: 13)),
+                      const SizedBox(height: 8),
+                      for (var i = 0; i < 4; i++) _seatRow(i),
+                    ],
+                    const SizedBox(height: 20),
                     FilledButton(onPressed: _play, child: const Text('Spielen')),
                     const SizedBox(height: 28),
                     const Text('Punkteziel', style: labelStyle),
@@ -149,6 +201,55 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+extension on _HomeScreenState {
+  Widget _seatRow(int i) {
+    final isHuman = i == 0 || humans[i];
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(children: [
+        SizedBox(
+          width: 82,
+          child: Text(_HomeScreenState.seatLabels[i],
+              style: const TextStyle(color: JassColors.gold, fontSize: 13)),
+        ),
+        Expanded(
+          child: TextField(
+            controller: names[i],
+            enabled: isHuman,
+            maxLength: 12,
+            style: const TextStyle(color: JassColors.cream),
+            decoration: InputDecoration(
+              isDense: true,
+              counterText: '',
+              hintText: isHuman ? 'Name' : 'Computer',
+              border: const OutlineInputBorder(),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        SizedBox(
+          width: 110,
+          child: i == 0
+              ? const Text('Mensch', textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white60))
+              : SegmentedButton<bool>(
+                  showSelectedIcon: false,
+                  style: const ButtonStyle(visualDensity: VisualDensity.compact),
+                  segments: const [
+                    ButtonSegment(value: true, icon: Icon(Icons.person), tooltip: 'Mensch'),
+                    ButtonSegment(value: false, icon: Icon(Icons.smart_toy), tooltip: 'Computer'),
+                  ],
+                  selected: {isHuman},
+                  onSelectionChanged: (s) =>
+                      // ignore: invalid_use_of_protected_member
+                      setState(() => humans[i] = s.first),
+                ),
+        ),
+      ]),
     );
   }
 }

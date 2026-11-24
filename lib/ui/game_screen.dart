@@ -17,11 +17,13 @@ class GameScreen extends StatefulWidget {
     required this.settings,
     required this.level,
     required this.fast,
+    this.seats = defaultSeats,
   });
 
   final SchieberSettings settings;
   final BotLevel level;
   final bool fast;
+  final List<SeatSetup> seats;
 
   @override
   State<GameScreen> createState() => _GameScreenState();
@@ -38,7 +40,10 @@ class _GameScreenState extends State<GameScreen> {
 
   void _newGame() {
     ctrl = GameController(
-        settings: widget.settings, level: widget.level, fast: widget.fast)
+        settings: widget.settings,
+        level: widget.level,
+        fast: widget.fast,
+        seats: widget.seats)
       ..start();
   }
 
@@ -116,13 +121,17 @@ class _GameScreenState extends State<GameScreen> {
               ),
             ],
           ),
-          if (g.phase == Phase.chooseMode && ctrl.humanToAct)
+          if (g.phase == Phase.chooseMode && ctrl.viewerToAct)
             Positioned(
               left: 8,
               right: 8,
               bottom: handW / cardAspect + 26,
               child: _TrumpChooser(ctrl: ctrl),
             ),
+          if (ctrl.handoverTo != null &&
+              g.phase != Phase.roundOver &&
+              g.phase != Phase.gameOver)
+            Positioned.fill(child: _HandoverCover(ctrl: ctrl)),
           if (g.phase == Phase.roundOver || g.phase == Phase.gameOver)
             Positioned.fill(
               child: _ResultPanel(
@@ -164,20 +173,20 @@ class _ScoreBar extends StatelessWidget {
             icon: const Icon(Icons.close, color: Colors.white70),
             tooltip: 'Spiel beenden',
           ),
-          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Wir', style: label),
-            Text('${g.totals[0]}', style: value),
-          ]),
-          const SizedBox(width: 18),
-          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Gegner', style: label),
-            Text('${g.totals[1]}', style: value),
-          ]),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text('Ziel ${g.settings.targetPoints}',
-                style: label, overflow: TextOverflow.ellipsis),
-          ),
+          for (final t in [0, 1]) ...[
+            Flexible(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(ctrl.teamLabel(t), style: label),
+                ),
+                Text('${g.totals[t]}', style: value),
+              ]),
+            ),
+            const SizedBox(width: 14),
+          ],
+          Text('Ziel\n${g.settings.targetPoints}', style: label),
+          const Spacer(),
           if (mode != null) _ModeBadge(mode: mode, multiplier: g.multiplier),
         ],
       ),
@@ -232,7 +241,9 @@ class _TableArea extends StatelessWidget {
       final cx = tw / 2;
       final cy = th / 2 + 6;
 
-      Offset offsetFor(int seat) => switch (seat) {
+      final v = ctrl.viewer;
+      // Position am Tisch aus Sicht der Person am Handy (0 = unten).
+      Offset offsetFor(int absSeat) => switch ((absSeat - v + 4) % 4) {
             0 => Offset(0, ch * 0.33),
             1 => Offset(cw * 0.62, 0),
             2 => Offset(0, -ch * 0.33),
@@ -246,9 +257,9 @@ class _TableArea extends StatelessWidget {
       return Stack(clipBehavior: Clip.none, children: [
         // Mitspieler
         Positioned(
-            top: 4, left: 0, right: 0, child: Center(child: _Seat(ctrl: ctrl, seat: 2))),
-        Positioned(left: 4, top: cy - 70, child: _Seat(ctrl: ctrl, seat: 3)),
-        Positioned(right: 4, top: cy - 70, child: _Seat(ctrl: ctrl, seat: 1)),
+            top: 4, left: 0, right: 0, child: Center(child: _Seat(ctrl: ctrl, seat: (v + 2) % 4))),
+        Positioned(left: 4, top: cy - 70, child: _Seat(ctrl: ctrl, seat: (v + 3) % 4)),
+        Positioned(right: 4, top: cy - 70, child: _Seat(ctrl: ctrl, seat: (v + 1) % 4)),
 
         // Stich
         for (var i = 0; i < g.trick.length; i++)
@@ -281,24 +292,27 @@ class _TableArea extends StatelessWidget {
             child: Center(child: _Banner(text: ctrl.banner!)),
           ),
 
-        if (g.phase == Phase.playing && ctrl.humanToAct)
-          const Positioned(
+        if (g.phase == Phase.playing && ctrl.viewerToAct)
+          Positioned(
             left: 0,
             right: 0,
             bottom: 4,
             child: Center(
-              child: Text('Du bist dran – tippe auf eine Karte',
-                  style: TextStyle(color: JassColors.gold, fontWeight: FontWeight.w600)),
+              child: Text(
+                  ctrl.isMultiplayer
+                      ? '${ctrl.nameOf(v)}, du bist dran'
+                      : 'Du bist dran – tippe auf eine Karte',
+                  style: const TextStyle(color: JassColors.gold, fontWeight: FontWeight.w600)),
             ),
           ),
 
         // Eigene Sprechblase (Weis/Stöck)
-        if (ctrl.bubbles[0] != null)
+        if (ctrl.bubbles[v] != null && !ctrl.handHidden)
           Positioned(
             left: 0,
             right: 0,
             bottom: 28,
-            child: Center(child: _Bubble(text: 'Du: ${ctrl.bubbles[0]}')),
+            child: Center(child: _Bubble(text: '${ctrl.isMultiplayer ? ctrl.nameOf(v) : 'Du'}: ${ctrl.bubbles[v]}')),
           ),
       ]);
     });
@@ -334,7 +348,7 @@ class _Seat extends StatelessWidget {
     final active = g.toAct == seat &&
         (g.phase == Phase.playing || g.phase == Phase.chooseMode);
     final count = g.hands[seat].length;
-    final isPartner = seat == 2;
+    final isPartner = seat == partnerOf(ctrl.viewer);
     return Column(mainAxisSize: MainAxisSize.min, children: [
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -343,7 +357,7 @@ class _Seat extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
         ),
         child: Text(
-          '${GameController.names[seat]}${isPartner ? ' (Partner)' : ''}'
+          '${ctrl.nameOf(seat)}${isPartner ? ' (Partner)' : ''}'
           '${g.chooser == seat && g.mode != null ? ' ★' : ''}',
           style: TextStyle(
             color: active ? JassColors.navy : JassColors.cream,
@@ -413,9 +427,10 @@ class _Hand extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final g = ctrl.game;
-    final hand = _sorted(g.hands[GameController.humanSeat], g.mode);
-    final myTurn = g.phase == Phase.playing && ctrl.humanToAct;
-    final legal = myTurn ? g.legalFor(GameController.humanSeat).toSet() : <JassCard>{};
+    final hand = _sorted(g.hands[ctrl.viewer], g.mode);
+    final hidden = ctrl.handHidden && ctrl.isMultiplayer;
+    final myTurn = g.phase == Phase.playing && ctrl.viewerToAct;
+    final legal = myTurn ? g.legalFor(ctrl.viewer).toSet() : <JassCard>{};
 
     return LayoutBuilder(builder: (context, box) {
       final avail = box.maxWidth - 16;
@@ -435,7 +450,7 @@ class _Hand extends StatelessWidget {
             child: GestureDetector(
               onTap: () => ctrl.humanPlay(hand[i]),
               child: CardImage(
-                card: hand[i],
+                card: hidden ? null : hand[i],
                 width: cardWidth,
                 dimmed: myTurn && !legal.contains(hand[i]),
               ),
@@ -504,7 +519,7 @@ class _TrumpChooser extends StatelessWidget {
                   side: const BorderSide(color: JassColors.gold),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
-                child: const Text('Schieben (Sepp wählt)', style: TextStyle(fontSize: 16)),
+                child: Text('Schieben (${ctrl.nameOf(partnerOf(g.toAct))} wählt)', style: const TextStyle(fontSize: 16)),
               ),
             ),
           ],
@@ -553,7 +568,7 @@ class _ResultPanel extends StatelessWidget {
     final g = ctrl.game;
     final r = g.lastResult;
     final over = g.phase == Phase.gameOver;
-    final won = g.winnerTeam == 0;
+    final won = g.winnerTeam == ctrl.viewer % 2;
 
     Widget row(String label, int a, int b, {bool bold = false}) {
       final st = TextStyle(
@@ -564,8 +579,8 @@ class _ResultPanel extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 3),
         child: Row(children: [
           Expanded(child: Text(label, style: st)),
-          SizedBox(width: 70, child: Text('$a', style: st, textAlign: TextAlign.right)),
-          SizedBox(width: 70, child: Text('$b', style: st, textAlign: TextAlign.right)),
+          SizedBox(width: 90, child: Text('$a', style: st, textAlign: TextAlign.right)),
+          SizedBox(width: 90, child: Text('$b', style: st, textAlign: TextAlign.right)),
         ]),
       );
     }
@@ -584,7 +599,12 @@ class _ResultPanel extends StatelessWidget {
         ),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           Text(
-            over ? (won ? 'Gewonnen!' : 'Verloren') : 'Runde ${g.roundNumber}',
+            over
+                ? (ctrl.isMultiplayer
+                    ? '${ctrl.teamLabel(g.winnerTeam!)} gewinnen!'
+                    : (won ? 'Gewonnen!' : 'Verloren'))
+                : 'Runde ${g.roundNumber}',
+            textAlign: TextAlign.center,
             style: const TextStyle(
                 color: JassColors.navy, fontSize: 26, fontWeight: FontWeight.bold),
           ),
@@ -599,16 +619,20 @@ class _ResultPanel extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 6),
                 child: Text(
-                  r.matchTeam == 0 ? 'Match! Alle Stiche für euch.' : 'Match für die Gegner.',
+                  'Match für ${ctrl.teamLabel(r.matchTeam!)}!',
                   style: const TextStyle(
                       color: JassColors.red, fontWeight: FontWeight.bold, fontSize: 16),
                 ),
               ),
             const SizedBox(height: 12),
-            Row(children: const [
-              Expanded(child: SizedBox()),
-              SizedBox(width: 70, child: Text('Wir', textAlign: TextAlign.right, style: TextStyle(color: Colors.black54))),
-              SizedBox(width: 70, child: Text('Gegner', textAlign: TextAlign.right, style: TextStyle(color: Colors.black54))),
+            Row(children: [
+              const Expanded(child: SizedBox()),
+              for (final t in [0, 1])
+                SizedBox(
+                    width: 90,
+                    child: Text(ctrl.teamLabel(t),
+                        textAlign: TextAlign.right,
+                        style: const TextStyle(color: Colors.black54, fontSize: 13))),
             ]),
             row('Stiche', r.cardPoints[0] * r.multiplier, r.cardPoints[1] * r.multiplier),
             if (r.weisPoints.any((p) => p > 0)) row('Weis', r.weisPoints[0], r.weisPoints[1]),
@@ -630,6 +654,52 @@ class _ResultPanel extends StatelessWidget {
               FilledButton(onPressed: onNewGame, child: const Text('Neues Spiel')),
             ]),
         ]),
+      ),
+    );
+  }
+}
+
+// ------------------------------------------------------------ Sichtschutz
+
+/// Deckt den Tisch ab, bis die nächste Person das Handy hat.
+class _HandoverCover extends StatelessWidget {
+  const _HandoverCover({required this.ctrl});
+  final GameController ctrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final to = ctrl.handoverTo!;
+    final g = ctrl.game;
+    final what = g.phase == Phase.chooseMode ? 'Trumpf bestimmen' : 'eine Karte spielen';
+    return Material(
+      color: JassColors.feltDark,
+      child: InkWell(
+        onTap: ctrl.confirmHandover,
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              const CardImage(width: 90),
+              const SizedBox(height: 28),
+              Text('Gib das Handy an',
+                  style: const TextStyle(color: Colors.white70, fontSize: 18)),
+              const SizedBox(height: 6),
+              Text(ctrl.nameOf(to),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      color: JassColors.cream, fontSize: 40, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 10),
+              Text('${ctrl.nameOf(to)} muss $what.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: JassColors.gold, fontSize: 16)),
+              const SizedBox(height: 36),
+              FilledButton(
+                onPressed: ctrl.confirmHandover,
+                child: Text('Ich bin ${ctrl.nameOf(to)} – Karten zeigen'),
+              ),
+            ]),
+          ),
+        ),
       ),
     );
   }
