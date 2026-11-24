@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../engine/cards.dart';
 import '../engine/game_mode.dart';
 import '../engine/schieber.dart';
+import '../net/net_game.dart';
 import 'card_widget.dart';
 import 'game_controller.dart';
 import 'jasstafel_screen.dart';
@@ -21,7 +22,23 @@ class GameScreen extends StatefulWidget {
     required this.fast,
     this.seats = defaultSeats,
     this.resume,
+    this.controller,
+    this.session,
   });
+
+  /// Spiel über mehrere Handys: fertiger Ablauf vom Netz.
+  const GameScreen.network({
+    super.key,
+    required GameController this.controller,
+    required NetSession this.session,
+  }) : settings = const SchieberSettings(),
+       level = BotLevel.stammtisch,
+       fast = false,
+       seats = defaultSeats,
+       resume = null;
+
+  final GameController? controller;
+  final NetSession? session;
 
   final SchieberSettings settings;
   final BotLevel level;
@@ -41,6 +58,11 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void initState() {
     super.initState();
+    final given = widget.controller;
+    if (given != null) {
+      ctrl = given;
+      return;
+    }
     final snap = widget.resume;
     if (snap != null) {
       try {
@@ -88,12 +110,45 @@ class _GameScreenState extends State<GameScreen> {
 
   @override
   void dispose() {
-    ctrl.dispose();
+    if (widget.session == null) ctrl.dispose();
     super.dispose();
   }
 
-  /// Das Spiel wird laufend gespeichert, darum darf man jederzeit raus.
-  Future<bool> _confirmLeave() async => true;
+  /// Allein wird laufend gespeichert, darum darf man jederzeit raus.
+  /// Übers Netz wird nachgefragt, weil es die anderen betrifft.
+  Future<bool> _confirmLeave() async {
+    final session = widget.session;
+    if (session == null) return true;
+    if (session.problem != null) {
+      await session.close();
+      return true;
+    }
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Spiel verlassen?'),
+        content: Text(
+          session.isHost
+              ? 'Das Spiel ist dann für alle zu Ende.'
+              : 'Der Computer spielt für dich weiter. Mit «Beitreten» und '
+                    'gleichem Namen kommst du wieder an deinen Platz.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('Weiterspielen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Verlassen'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return false;
+    await session.close();
+    return true;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -115,7 +170,7 @@ class _GameScreenState extends State<GameScreen> {
           ),
           child: SafeArea(
             child: ListenableBuilder(
-              listenable: ctrl,
+              listenable: Listenable.merge([ctrl, ?widget.session]),
               builder: (context, _) => _buildTable(context),
             ),
           ),
@@ -164,15 +219,85 @@ class _GameScreenState extends State<GameScreen> {
                 child: _ResultPanel(
                   ctrl: ctrl,
                   onNewGame: () => setState(() {
+                    if (widget.session != null) {
+                      ctrl.restart();
+                      return;
+                    }
                     ctrl.dispose();
                     _newGame();
                   }),
-                  onMenu: () => Navigator.of(context).pop(),
+                  onMenu: () async {
+                    final nav = Navigator.of(context);
+                    await widget.session?.close();
+                    nav.pop();
+                  },
+                ),
+              ),
+            if (widget.session?.problem case final p?)
+              Positioned.fill(
+                child: _ConnectionLost(
+                  text: p,
+                  onBack: () async {
+                    final nav = Navigator.of(context);
+                    await widget.session!.close();
+                    nav.pop();
+                  },
+                  onRetry: widget.session is JassGuest
+                      ? () => (widget.session as JassGuest).reconnect()
+                      : null,
                 ),
               ),
           ],
         );
       },
+    );
+  }
+}
+
+/// Verbindung weg: Hinweis über dem Tisch.
+class _ConnectionLost extends StatelessWidget {
+  const _ConnectionLost({
+    required this.text,
+    required this.onBack,
+    this.onRetry,
+  });
+  final String text;
+  final VoidCallback onBack;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.black87,
+      alignment: Alignment.center,
+      padding: const EdgeInsets.all(28),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.wifi_off, color: JassColors.gold, size: 48),
+          const SizedBox(height: 14),
+          Text(
+            text,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: JassColors.cream, fontSize: 17),
+          ),
+          const SizedBox(height: 22),
+          if (onRetry != null) ...[
+            FilledButton(
+              onPressed: onRetry,
+              child: const Text('Nochmals verbinden'),
+            ),
+            const SizedBox(height: 8),
+          ],
+          TextButton(
+            onPressed: onBack,
+            child: const Text(
+              'Zurück zum Menü',
+              style: TextStyle(color: JassColors.cream),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -821,7 +946,13 @@ class _ResultPanel extends StatelessWidget {
               row('Total', g.totals[0], g.totals[1], bold: true),
             ],
             const SizedBox(height: 18),
-            if (!over)
+            if (!over && ctrl.isClient)
+              const Text(
+                'Der Gastgeber startet die nächste Runde.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.black54),
+              )
+            else if (!over)
               FilledButton(
                 onPressed: ctrl.nextRound,
                 child: const Text('Nächste Runde'),
@@ -837,11 +968,13 @@ class _ResultPanel extends StatelessWidget {
                       style: TextStyle(color: JassColors.navy),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  FilledButton(
-                    onPressed: onNewGame,
-                    child: const Text('Neues Spiel'),
-                  ),
+                  if (!ctrl.isClient) ...[
+                    const SizedBox(width: 12),
+                    FilledButton(
+                      onPressed: onNewGame,
+                      child: const Text('Neues Spiel'),
+                    ),
+                  ],
                 ],
               ),
           ],

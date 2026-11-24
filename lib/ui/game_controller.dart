@@ -12,9 +12,16 @@ enum BotLevel { anfaenger, stammtisch, profi }
 
 /// Wer an einem Platz sitzt.
 class SeatSetup {
-  const SeatSetup({required this.name, required this.human});
+  const SeatSetup({
+    required this.name,
+    required this.human,
+    this.remote = false,
+  });
   final String name;
   final bool human;
+
+  /// Mensch an einem anderen Handy (Spiel über WLAN/Hotspot).
+  final bool remote;
 }
 
 /// Standard: Du gegen drei Computergegner.
@@ -38,24 +45,40 @@ class GameController extends ChangeNotifier {
     List<SeatSetup> seats = defaultSeats,
     SchieberGame? resumeFrom,
     this.onSave,
+    this.sendAction,
+    this.onBroadcast,
   }) : game = resumeFrom ?? SchieberGame(settings: settings),
-       seats = List.unmodifiable(seats) {
+       seats = List.of(seats) {
     for (var s = 0; s < 4; s++) {
-      bots[s] = seats[s].human
-          ? null
-          : switch (level) {
-              BotLevel.anfaenger => RandomBot(),
-              BotLevel.stammtisch => RuleBot(),
-              BotLevel.profi => ProfiBot(),
-            };
+      bots[s] = seats[s].human ? null : _makeBot();
     }
-    viewer = seats.indexWhere((s) => s.human);
+    viewer = seats.indexWhere((s) => s.human && !s.remote);
     handHidden = isMultiplayer;
     if (viewer < 0) viewer = 0;
   }
 
-  final SchieberGame game;
+  JassBot _makeBot() => switch (level) {
+    BotLevel.anfaenger => RandomBot(),
+    BotLevel.stammtisch => RuleBot(),
+    BotLevel.profi => ProfiBot(),
+  };
+
+  SchieberGame game;
   final List<SeatSetup> seats;
+
+  /// Nur beim Mitspieler-Handy im WLAN-Spiel: Züge gehen an den Gastgeber,
+  /// statt sie selbst auszuführen. Der Spielstand kommt vom Gastgeber.
+  final void Function(Map<String, dynamic> action)? sendAction;
+
+  /// Nur beim Gastgeber im WLAN-Spiel: nach jeder Änderung aufgerufen,
+  /// damit der Stand an alle Handys geht.
+  final void Function()? onBroadcast;
+
+  /// Mitspieler-Handy (spielt nicht selbst, zeigt nur, was kommt).
+  bool get isClient => sendAction != null;
+
+  /// Spiel über mehrere Handys (Gastgeber oder Mitspieler).
+  bool get isNetwork => isClient || seats.any((s) => s.remote);
   final List<JassBot?> bots = [null, null, null, null];
   final bool fast;
   final BotLevel level;
@@ -124,9 +147,14 @@ class GameController extends ChangeNotifier {
   Duration get _botDelay => Duration(milliseconds: fast ? 350 : 750);
   Duration get _trickDelay => Duration(milliseconds: fast ? 700 : 1400);
 
-  int get humanCount => seats.where((s) => s.human).length;
+  int get humanCount => seats.where((s) => s.human && !s.remote).length;
+
+  /// Mehrere Personen an diesem einen Handy (Herumreichen).
   bool get isMultiplayer => humanCount > 1;
   bool isHuman(int seat) => seats[seat].human;
+
+  /// Mensch, der an diesem Handy spielt.
+  bool isLocal(int seat) => seats[seat].human && !seats[seat].remote;
   String nameOf(int seat) => seats[seat].name;
 
   /// Darf die Person, die gerade aufs Handy schaut, handeln?
@@ -135,11 +163,11 @@ class GameController extends ChangeNotifier {
       !(isMultiplayer && handHidden) &&
       (game.phase == Phase.chooseMode || game.phase == Phase.playing) &&
       game.toAct == viewer &&
-      isHuman(viewer);
+      isLocal(viewer);
 
   /// «Du» bei nur einer Person, sonst der Name.
   String _subject(int seat) =>
-      (!isMultiplayer && isHuman(seat)) ? 'Du' : nameOf(seat);
+      (!isMultiplayer && !isNetwork && isLocal(seat)) ? 'Du' : nameOf(seat);
 
   /// Name eines Teams aus Sicht der Person am Handy.
   String teamLabel(int team) {
@@ -154,6 +182,7 @@ class GameController extends ChangeNotifier {
   }
 
   void nextRound() {
+    if (isClient) return; // Nur der Gastgeber teilt neu aus.
     game.nextRound();
     bubbles.clear();
     _announceChooser();
@@ -163,7 +192,7 @@ class GameController extends ChangeNotifier {
   void _announceChooser() {
     final c = game.chooser;
     _showBanner(
-      !isMultiplayer && isHuman(c)
+      _subject(c) == 'Du'
           ? 'Du bestimmst Trumpf'
           : '${nameOf(c)} bestimmt Trumpf',
     );
@@ -186,7 +215,7 @@ class GameController extends ChangeNotifier {
     final phase = game.phase;
     if (phase != Phase.chooseMode && phase != Phase.playing) return;
     final seat = game.toAct;
-    if (!isHuman(seat)) return;
+    if (!isLocal(seat)) return;
     if (!isMultiplayer) {
       viewer = seat;
       handHidden = false;
@@ -199,22 +228,27 @@ class GameController extends ChangeNotifier {
 
   void humanSchieben() {
     if (!viewerToAct || !game.canSchieben) return;
+    if (isClient) return sendAction!({'a': 'schieben'});
     final from = game.toAct;
     game.schieben();
     if (isMultiplayer) handHidden = true;
-    final who = isMultiplayer ? '${nameOf(from)} schiebt' : 'Du schiebst';
+    final who = _subject(from) == 'Du'
+        ? 'Du schiebst'
+        : '${nameOf(from)} schiebt';
     _showBanner('$who zu ${nameOf(partnerOf(from))}');
     _changed();
   }
 
   void humanChooseMode(GameMode m) {
     if (!viewerToAct || game.phase != Phase.chooseMode) return;
+    if (isClient) return sendAction!({'a': 'mode', 'm': modeToJson(m)});
     _applyMode(game.toAct, m);
   }
 
   void humanPlay(JassCard card) {
     if (!viewerToAct || game.phase != Phase.playing) return;
     if (!game.legalFor(viewer).contains(card)) return;
+    if (isClient) return sendAction!({'a': 'play', 'c': card.id});
     _play(viewer, card);
   }
 
@@ -246,6 +280,8 @@ class GameController extends ChangeNotifier {
     if (_disposed) return;
     _checkHandover();
     notifyListeners();
+    onBroadcast?.call();
+    if (isClient) return;
     _scheduleNext();
     final save = onSave;
     if (save != null) {
@@ -257,9 +293,11 @@ class GameController extends ChangeNotifier {
     _timer?.cancel();
     switch (game.phase) {
       case Phase.chooseMode:
-        if (!isHuman(game.toAct)) _timer = Timer(_botDelay * 1.5, _botChoose);
+        if (bots[game.toAct] != null) {
+          _timer = Timer(_botDelay * 1.5, _botChoose);
+        }
       case Phase.playing:
-        if (!isHuman(game.toAct)) _timer = Timer(_botDelay, _botPlay);
+        if (bots[game.toAct] != null) _timer = Timer(_botDelay, _botPlay);
       case Phase.trickComplete:
         _timer = Timer(_trickDelay, _collect);
       case Phase.roundOver:
@@ -298,7 +336,7 @@ class GameController extends ChangeNotifier {
       if (team != null) {
         final pts = game.roundWeis[team];
         _showBanner(
-          !isMultiplayer
+          !isMultiplayer && !isNetwork
               ? (team == viewer % 2
                     ? 'Ihr zählt $pts Weispunkte'
                     : 'Gegner zählen $pts Weispunkte')
@@ -316,8 +354,103 @@ class GameController extends ChangeNotifier {
     _bannerTimer?.cancel();
     _bannerTimer = Timer(const Duration(milliseconds: 2200), () {
       banner = null;
-      if (!_disposed) notifyListeners();
+      if (!_disposed) {
+        notifyListeners();
+        onBroadcast?.call();
+      }
     });
+  }
+
+  // ------------------------------------------------ Spiel über mehrere Handys
+
+  /// Gastgeber: Was das Handy am Platz [seat] sehen darf. Die Karten der
+  /// anderen werden durch Platzhalter ersetzt (nur die Anzahl stimmt).
+  Map<String, dynamic> stateFor(int seat) {
+    final j = game.toJson();
+    j['hands'] = [
+      for (var s = 0; s < 4; s++)
+        s == seat
+            ? [for (final c in game.hands[s]) c.id]
+            : List<int>.filled(game.hands[s].length, 0),
+    ];
+    return {
+      'game': j,
+      'banner': banner,
+      'bubbles': {for (final e in bubbles.entries) '${e.key}': e.value},
+      'seats': [
+        for (final s in seats) {'name': s.name, 'human': s.human},
+      ],
+    };
+  }
+
+  /// Mitspieler: neuen Stand vom Gastgeber übernehmen.
+  void applyRemoteState(Map<String, dynamic> st) {
+    if (_disposed) return;
+    game = SchieberSave.fromJson(Map<String, dynamic>.from(st['game'] as Map));
+    banner = st['banner'] as String?;
+    bubbles
+      ..clear()
+      ..addAll({
+        for (final e in Map<String, dynamic>.from(st['bubbles'] as Map).entries)
+          int.parse(e.key): e.value as String,
+      });
+    final names = st['seats'] as List;
+    for (var s = 0; s < 4; s++) {
+      final x = Map<String, dynamic>.from(names[s] as Map);
+      final human = x['human'] as bool;
+      seats[s] = SeatSetup(
+        name: x['name'] as String,
+        human: human,
+        remote: s != viewer && human,
+      );
+    }
+    notifyListeners();
+  }
+
+  /// Gastgeber: Zug von einem anderen Handy ausführen (wird geprüft).
+  void remoteAction(int seat, Map<String, dynamic> a) {
+    if (_disposed || !seats[seat].remote || game.toAct != seat) return;
+    switch (a['a']) {
+      case 'schieben':
+        if (game.phase != Phase.chooseMode || !game.canSchieben) return;
+        game.schieben();
+        _showBanner('${nameOf(seat)} schiebt zu ${nameOf(partnerOf(seat))}');
+        _changed();
+      case 'mode':
+        if (game.phase != Phase.chooseMode) return;
+        final m = modeFromJson(Map<String, dynamic>.from(a['m'] as Map));
+        _applyMode(seat, m);
+      case 'play':
+        if (game.phase != Phase.playing) return;
+        final card = JassCard.fromId(a['c'] as int);
+        if (!game.legalFor(seat).contains(card)) return;
+        _play(seat, card);
+    }
+  }
+
+  /// Gastgeber: Mitspieler weg, der Computer übernimmt den Platz.
+  void seatToBot(int seat) {
+    if (!seats[seat].remote) return;
+    seats[seat] = SeatSetup(name: seats[seat].name, human: false);
+    bots[seat] = _makeBot();
+    _showBanner('${nameOf(seat)} ist weg, der Computer spielt weiter');
+    _changed();
+  }
+
+  /// Gastgeber: Mitspieler ist wieder da und übernimmt seinen Platz.
+  void seatToRemote(int seat) {
+    seats[seat] = SeatSetup(name: seats[seat].name, human: true, remote: true);
+    bots[seat] = null;
+    _showBanner('${nameOf(seat)} ist wieder dabei');
+    _changed();
+  }
+
+  /// Gastgeber: neue Partie mit denselben Leuten.
+  void restart() {
+    if (isClient) return;
+    game = SchieberGame(settings: game.settings);
+    bubbles.clear();
+    start();
   }
 
   @override

@@ -92,8 +92,7 @@ void main() {
         c(Suit.kreuz, Rank.ace),
       ];
       final legal = legalCards(hand, [c(Suit.pik, Rank.king)], m);
-      expect(legal.toSet(),
-          {c(Suit.pik, Rank.seven), c(Suit.herz, Rank.six)});
+      expect(legal.toSet(), {c(Suit.pik, Rank.seven), c(Suit.herz, Rank.six)});
     });
 
     test('Farbe nicht vorhanden: alles erlaubt', () {
@@ -103,8 +102,9 @@ void main() {
 
     test('Trumpf ausgespielt: Trumpf angeben', () {
       final hand = [c(Suit.herz, Rank.seven), c(Suit.kreuz, Rank.ace)];
-      expect(legalCards(hand, [c(Suit.herz, Rank.king)], m),
-          [c(Suit.herz, Rank.seven)]);
+      expect(legalCards(hand, [c(Suit.herz, Rank.king)], m), [
+        c(Suit.herz, Rank.seven),
+      ]);
     });
 
     test('Puur muss nicht angegeben werden', () {
@@ -119,8 +119,10 @@ void main() {
         c(Suit.kreuz, Rank.seven),
       ];
       final trick = [c(Suit.pik, Rank.ace), c(Suit.herz, Rank.ten)];
-      expect(legalCards(hand, trick, m).toSet(),
-          {c(Suit.herz, Rank.ace), c(Suit.kreuz, Rank.seven)});
+      expect(legalCards(hand, trick, m).toSet(), {
+        c(Suit.herz, Rank.ace),
+        c(Suit.kreuz, Rank.seven),
+      });
     });
 
     test('Untertrumpfen erlaubt, wenn nur noch Trümpfe', () {
@@ -160,16 +162,24 @@ void main() {
 
     test('bei gleichen Punkten zählt die höhere Folge', () {
       const m = GameMode.trump(Suit.kreuz);
-      final low = Weis([
-        c(Suit.pik, Rank.six),
-        c(Suit.pik, Rank.seven),
-        c(Suit.pik, Rank.eight)
-      ], 20, isSequence: true);
-      final high = Weis([
-        c(Suit.herz, Rank.queen),
-        c(Suit.herz, Rank.king),
-        c(Suit.herz, Rank.ace)
-      ], 20, isSequence: true);
+      final low = Weis(
+        [
+          c(Suit.pik, Rank.six),
+          c(Suit.pik, Rank.seven),
+          c(Suit.pik, Rank.eight),
+        ],
+        20,
+        isSequence: true,
+      );
+      final high = Weis(
+        [
+          c(Suit.herz, Rank.queen),
+          c(Suit.herz, Rank.king),
+          c(Suit.herz, Rank.ace),
+        ],
+        20,
+        isSequence: true,
+      );
       expect(compareWeis(high, low, m), greaterThan(0));
     });
   });
@@ -179,7 +189,10 @@ void main() {
       final rng = Random(7);
       for (var game = 0; game < 200; game++) {
         final g = SchieberGame(
-          settings: const SchieberSettings(useMultipliers: false, targetPoints: 100000),
+          settings: const SchieberSettings(
+            useMultipliers: false,
+            targetPoints: 100000,
+          ),
           random: rng,
         );
         g.start();
@@ -194,9 +207,14 @@ void main() {
     test('Spiel endet, sobald ein Team das Ziel erreicht', () {
       final rng = Random(3);
       final g = SchieberGame(
-          settings: const SchieberSettings(targetPoints: 1000), random: rng);
+        settings: const SchieberSettings(targetPoints: 1000),
+        random: rng,
+      );
       g.start();
-      final bots = List.generate(4, (i) => i.isEven ? RuleBot(rng) : RandomBot(rng));
+      final bots = List.generate(
+        4,
+        (i) => i.isEven ? RuleBot(rng) : RandomBot(rng),
+      );
       var rounds = 0;
       while (g.phase != Phase.gameOver) {
         if (g.phase == Phase.roundOver) g.nextRound();
@@ -214,9 +232,14 @@ void main() {
       var randomTeam = 0;
       for (var i = 0; i < 300; i++) {
         final g = SchieberGame(
-            settings: const SchieberSettings(targetPoints: 1 << 30), random: rng);
+          settings: const SchieberSettings(targetPoints: 1 << 30),
+          random: rng,
+        );
         g.start();
-        final bots = List.generate(4, (s) => s.isEven ? RuleBot(rng) : RandomBot(rng));
+        final bots = List.generate(
+          4,
+          (s) => s.isEven ? RuleBot(rng) : RandomBot(rng),
+        );
         _playRound(g, bots);
         ruleTeam += g.totals[0];
         randomTeam += g.totals[1];
@@ -230,12 +253,19 @@ void main() {
       for (var i = 0; i < 12; i++) {
         for (final pt in [0, 1]) {
           final g = SchieberGame(
-              settings: const SchieberSettings(targetPoints: 1 << 30, useMultipliers: false),
-              random: Random(100 + i));
+            settings: const SchieberSettings(
+              targetPoints: 1 << 30,
+              useMultipliers: false,
+            ),
+            random: Random(100 + i),
+          );
           g.start();
-          final bots = List<JassBot>.generate(4, (s) => teamOf(s) == pt
-              ? ProfiBot(rng: Random(s), budget: 150)
-              : RuleBot(Random(s)));
+          final bots = List<JassBot>.generate(
+            4,
+            (s) => teamOf(s) == pt
+                ? ProfiBot(rng: Random(s), budget: 150)
+                : RuleBot(Random(s)),
+          );
           _playRound(g, bots);
           profi += g.totals[pt];
           rule += g.totals[1 - pt];
@@ -247,8 +277,9 @@ void main() {
     test('Spielstand speichern und laden ergibt dasselbe Spiel', () {
       for (var seed = 0; seed < 20; seed++) {
         final g = SchieberGame(
-            settings: const SchieberSettings(targetPoints: 100000),
-            random: Random(seed));
+          settings: const SchieberSettings(targetPoints: 100000),
+          random: Random(seed),
+        );
         g.start();
         final bots = List.generate(4, (s) => RuleBot(Random(seed * 4 + s)));
         // Mitten in der Runde anhalten.
@@ -272,7 +303,11 @@ void main() {
 
     test('Stöck wird gezählt', () {
       final g = SchieberGame(
-          settings: const SchieberSettings(useMultipliers: false, targetPoints: 100000));
+        settings: const SchieberSettings(
+          useMultipliers: false,
+          targetPoints: 100000,
+        ),
+      );
       final deck = List.of(fullDeck);
       // Sitz 0 bekommt alle Herz (inkl. König und Dame).
       final hands = [
@@ -309,7 +344,10 @@ void _step(SchieberGame g, List<JassBot> bots) {
     switch (g.phase) {
       case Phase.chooseMode:
         final seat = g.toAct;
-        final m = bots[seat].chooseMode(g.viewFor(seat), canSchieben: g.canSchieben);
+        final m = bots[seat].chooseMode(
+          g.viewFor(seat),
+          canSchieben: g.canSchieben,
+        );
         if (m == null) {
           g.schieben();
         } else {

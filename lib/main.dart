@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -5,6 +6,7 @@ import 'engine/schieber.dart';
 import 'ui/card_widget.dart';
 import 'ui/game_controller.dart';
 import 'ui/game_screen.dart';
+import 'ui/net_screens.dart';
 import 'ui/rules_screen.dart';
 import 'ui/storage.dart';
 import 'ui/theme.dart';
@@ -43,8 +45,14 @@ class _HomeScreenState extends State<HomeScreen> {
   BotLevel level = BotLevel.stammtisch;
   bool fast = false;
 
-  /// false = allein gegen den Computer, true = mehrere Personen am Handy.
+  /// false = allein gegen den Computer, true = mit Freunden.
   bool together = false;
+
+  /// Mit Freunden: false = ein Handy herumreichen, true = jedes eigene Handy.
+  bool network = false;
+
+  /// Eigener Name im Spiel über mehrere Handys.
+  final myName = TextEditingController();
   final names = [
     TextEditingController(text: 'Anna'),
     TextEditingController(text: 'Vreni'),
@@ -91,6 +99,8 @@ class _HomeScreenState extends State<HomeScreen> {
           orElse: () => level,
         );
         together = s['together'] as bool? ?? together;
+        network = !kIsWeb && (s['network'] as bool? ?? network);
+        myName.text = s['myName'] as String? ?? '';
         final n = s['names'] as List?;
         final h = s['humans'] as List?;
         for (var i = 0; i < 4; i++) {
@@ -109,6 +119,8 @@ class _HomeScreenState extends State<HomeScreen> {
     'deck': cardDeck.name,
     'level': level.name,
     'together': together,
+    'network': network,
+    'myName': myName.text,
     'names': [for (final c in names) c.text],
     'humans': humans,
   });
@@ -157,6 +169,7 @@ class _HomeScreenState extends State<HomeScreen> {
     for (final c in names) {
       c.dispose();
     }
+    myName.dispose();
     super.dispose();
   }
 
@@ -191,6 +204,34 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => cardDeck = d);
     _precache();
     _saveSettings();
+  }
+
+  String get _myName {
+    final n = myName.text.trim();
+    return n.isEmpty ? 'Gast' : n;
+  }
+
+  void _host() {
+    _saveSettings();
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => HostLobbyScreen(
+          name: _myName,
+          settings: SchieberSettings(
+            targetPoints: target,
+            useMultipliers: multipliers,
+          ),
+          level: level,
+          fast: fast,
+        ),
+      ),
+    );
+  }
+
+  void _join() {
+    _saveSettings();
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => JoinScreen(name: _myName)));
   }
 
   void _play() {
@@ -264,7 +305,55 @@ class _HomeScreenState extends State<HomeScreen> {
                       onSelectionChanged: (s) =>
                           setState(() => together = s.first),
                     ),
-                    if (together) ...[
+                    if (together && !kIsWeb) ...[
+                      const SizedBox(height: 12),
+                      SegmentedButton<bool>(
+                        showSelectedIcon: false,
+                        segments: const [
+                          ButtonSegment(
+                            value: false,
+                            label: Text('Ein Handy'),
+                            icon: Icon(Icons.phone_android),
+                          ),
+                          ButtonSegment(
+                            value: true,
+                            label: Text('Jeder sein Handy'),
+                            icon: Icon(Icons.wifi),
+                          ),
+                        ],
+                        selected: {network},
+                        onSelectionChanged: (s) =>
+                            setState(() => network = s.first),
+                      ),
+                    ],
+                    if (together && network && !kIsWeb) ...[
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Alle Handys im gleichen WLAN oder im Hotspot eines Handys. '
+                        'Ein Handy eröffnet das Spiel und zeigt einen QR-Code, die '
+                        'anderen treten bei. Freie Plätze übernimmt der Computer. '
+                        'Internet braucht es nicht.',
+                        style: TextStyle(color: Colors.white70, fontSize: 13),
+                      ),
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: myName,
+                        maxLength: 14,
+                        style: const TextStyle(color: JassColors.cream),
+                        decoration: const InputDecoration(
+                          labelText: 'Dein Name',
+                          labelStyle: TextStyle(color: Colors.white70),
+                          counterText: '',
+                          isDense: true,
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: Colors.white38),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: JassColors.gold),
+                          ),
+                        ),
+                      ),
+                    ] else if (together) ...[
                       const SizedBox(height: 12),
                       const Text(
                         'Ein Handy für alle: Es wird vor jedem Zug weitergegeben. '
@@ -276,7 +365,23 @@ class _HomeScreenState extends State<HomeScreen> {
                       for (var i = 0; i < 4; i++) _seatRow(i),
                     ],
                     const SizedBox(height: 20),
-                    if (saved != null) ...[
+                    if (together && network && !kIsWeb) ...[
+                      FilledButton.icon(
+                        onPressed: _host,
+                        icon: const Icon(Icons.qr_code_2),
+                        label: const Text('Spiel eröffnen'),
+                      ),
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        onPressed: _join,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: JassColors.cream,
+                          side: const BorderSide(color: JassColors.cream),
+                        ),
+                        icon: const Icon(Icons.qr_code_scanner),
+                        label: const Text('Beitreten'),
+                      ),
+                    ] else if (saved != null) ...[
                       FilledButton.icon(
                         onPressed: _resume,
                         icon: const Icon(Icons.play_arrow),

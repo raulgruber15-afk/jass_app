@@ -68,5 +68,9 @@
 	<false/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>de-CH</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Damit mehrere Handys im gleichen WLAN oder Hotspot zusammen jassen können.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Zum Scannen des QR-Codes, um einem Spiel beizutreten.</string>
 </dict>
 </plist>

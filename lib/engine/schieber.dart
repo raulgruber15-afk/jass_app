@@ -461,12 +461,12 @@ List<JassCard> _cards(dynamic l) => [
 ];
 List<int> _ints(dynamic l) => [for (final i in (l as List)) i as int];
 
-Map<String, dynamic> _modeToJson(GameMode m) => {
+Map<String, dynamic> modeToJson(GameMode m) => {
   't': m.type.index,
   if (m.trumpSuit != null) 's': m.trumpSuit!.index,
 };
 
-GameMode _modeFromJson(Map<String, dynamic> j) =>
+GameMode modeFromJson(Map<String, dynamic> j) =>
     switch (ModeType.values[j['t'] as int]) {
       ModeType.trump => GameMode.trump(Suit.values[j['s'] as int]),
       ModeType.obenabe => const GameMode.obenabe(),
@@ -482,7 +482,7 @@ Weis _weisFromJson(Map<String, dynamic> j) =>
     Weis(_cards(j['c']), j['p'] as int, isSequence: j['q'] as bool);
 
 Map<String, dynamic> _resultToJson(RoundResult r) => {
-  'm': _modeToJson(r.mode),
+  'm': modeToJson(r.mode),
   'x': r.multiplier,
   'c': r.cardPoints,
   'w': r.weisPoints,
@@ -490,7 +490,7 @@ Map<String, dynamic> _resultToJson(RoundResult r) => {
   if (r.matchTeam != null) 'mt': r.matchTeam,
 };
 RoundResult _resultFromJson(Map<String, dynamic> j) => RoundResult(
-  mode: _modeFromJson(Map<String, dynamic>.from(j['m'] as Map)),
+  mode: modeFromJson(Map<String, dynamic>.from(j['m'] as Map)),
   multiplier: j['x'] as int,
   cardPoints: _ints(j['c']),
   weisPoints: _ints(j['w']),
@@ -511,7 +511,7 @@ extension SchieberSave on SchieberGame {
     'hands': [for (final h in hands) _ids(h)],
     'chooser': chooser,
     'geschoben': geschoben,
-    if (mode != null) 'mode': _modeToJson(mode!),
+    if (mode != null) 'mode': modeToJson(mode!),
     'toAct': toAct,
     'trick': _ids(trick),
     'trickSeats': trickSeats,
@@ -556,7 +556,7 @@ extension SchieberSave on SchieberGame {
     g.hands = [for (final h in j['hands'] as List) _cards(h)];
     g.chooser = j['chooser'] as int;
     g.geschoben = j['geschoben'] as bool;
-    g.mode = j['mode'] == null ? null : _modeFromJson(m(j['mode']));
+    g.mode = j['mode'] == null ? null : modeFromJson(m(j['mode']));
     g.toAct = j['toAct'] as int;
     g.trick.addAll(_cards(j['trick']));
     g.trickSeats.addAll(_ints(j['trickSeats']));
