@@ -58,6 +58,9 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Angefangenes Spiel, falls vorhanden.
   Map<String, dynamic>? saved;
 
+  /// Bilanz gegen den Computer je Stufe: [gewonnen, verloren].
+  Map<String, List<int>> stats = {};
+
   @override
   void initState() {
     super.initState();
@@ -67,17 +70,21 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _load() async {
     final s = await Storage.loadSettings();
     final g = await Storage.loadGame();
+    final st = await Storage.loadStats();
     if (!mounted) return;
     setState(() {
+      stats = st;
       if (s != null) {
         target = s['target'] as int? ?? target;
         multipliers = s['multipliers'] as bool? ?? multipliers;
         fast = s['fast'] as bool? ?? fast;
         final deck = s['deck'] as String?;
-        cardDeck = CardDeck.values.firstWhere(
-          (d) => d.name == deck,
-          orElse: () => cardDeck,
-        );
+        if (schweizerBlattFreigegeben) {
+          cardDeck = CardDeck.values.firstWhere(
+            (d) => d.name == deck,
+            orElse: () => cardDeck,
+          );
+        }
         final lv = s['level'] as String?;
         level = BotLevel.values.firstWhere(
           (l) => l.name == lv,
@@ -118,10 +125,22 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  String _statsLine() {
+    final l = stats[level.name];
+    if (l == null) return 'Noch keine Partie gegen diese Stufe gespielt.';
+    return 'Deine Bilanz: ${l[0]} gewonnen, ${l[1]} verloren';
+  }
+
   Future<void> _open(GameScreen screen) async {
     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
     final g = await Storage.loadGame();
-    if (mounted) setState(() => saved = g);
+    final st = await Storage.loadStats();
+    if (mounted) {
+      setState(() {
+        saved = g;
+        stats = st;
+      });
+    }
   }
 
   void _resume() => _open(
@@ -307,24 +326,26 @@ class _HomeScreenState extends State<HomeScreen> {
                           setState(() => target = s.first),
                     ),
                     const SizedBox(height: 16),
-                    const Text('Karten', style: labelStyle),
-                    const SizedBox(height: 6),
-                    SegmentedButton<CardDeck>(
-                      showSelectedIcon: false,
-                      segments: const [
-                        ButtonSegment(
-                          value: CardDeck.schweizer,
-                          label: Text('Schweizer'),
-                        ),
-                        ButtonSegment(
-                          value: CardDeck.franzoesisch,
-                          label: Text('Französisch'),
-                        ),
-                      ],
-                      selected: {cardDeck},
-                      onSelectionChanged: (s) => _setDeck(s.first),
-                    ),
-                    const SizedBox(height: 16),
+                    if (schweizerBlattFreigegeben) ...[
+                      const Text('Karten', style: labelStyle),
+                      const SizedBox(height: 6),
+                      SegmentedButton<CardDeck>(
+                        showSelectedIcon: false,
+                        segments: const [
+                          ButtonSegment(
+                            value: CardDeck.schweizer,
+                            label: Text('Schweizer'),
+                          ),
+                          ButtonSegment(
+                            value: CardDeck.franzoesisch,
+                            label: Text('Französisch'),
+                          ),
+                        ],
+                        selected: {cardDeck},
+                        onSelectionChanged: (s) => _setDeck(s.first),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                     const Text('Gegner', style: labelStyle),
                     const SizedBox(height: 6),
                     SegmentedButton<BotLevel>(
@@ -347,6 +368,18 @@ class _HomeScreenState extends State<HomeScreen> {
                       onSelectionChanged: (s) =>
                           setState(() => level = s.first),
                     ),
+                    if (!together)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Text(
+                          _statsLine(),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white60,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
                     const SizedBox(height: 8),
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,

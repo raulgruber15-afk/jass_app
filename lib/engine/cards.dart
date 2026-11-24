@@ -7,8 +7,14 @@
 /// nur Namen und Bilder ändern sich.
 enum CardDeck { schweizer, franzoesisch }
 
+/// Schweizer Blatt in der App anbieten? Vorerst aus, bis ein passendes
+/// Kartenbild gefunden ist (Raul, 24.11.2026). Der Code ist fertig.
+const bool schweizerBlattFreigegeben = false;
+
 /// Aktuell gewähltes Blatt (Einstellung auf der Startseite).
-CardDeck cardDeck = CardDeck.schweizer;
+CardDeck cardDeck = schweizerBlattFreigegeben
+    ? CardDeck.schweizer
+    : CardDeck.franzoesisch;
 
 bool get _swiss => cardDeck == CardDeck.schweizer;
 

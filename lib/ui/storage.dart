@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class Storage {
   static const _gameKey = 'laufendes_spiel_v1';
   static const _settingsKey = 'einstellungen_v1';
+  static const _statsKey = 'statistik_v1';
 
   static Future<SharedPreferences?> _prefs() async {
     try {
@@ -45,4 +46,25 @@ class Storage {
   static Future<Map<String, dynamic>?> loadSettings() => _read(_settingsKey);
   static Future<void> saveSettings(Map<String, dynamic> s) =>
       _write(_settingsKey, s);
+
+  /// Bilanz allein gegen den Computer, je Stufe: {stufe: [gewonnen, verloren]}.
+  static Future<Map<String, List<int>>> loadStats() async {
+    final raw = await _read(_statsKey) ?? {};
+    final out = <String, List<int>>{};
+    raw.forEach((k, v) {
+      try {
+        final l = (v as List).cast<int>();
+        if (l.length == 2) out[k] = l;
+      } catch (_) {}
+    });
+    return out;
+  }
+
+  static Future<void> recordResult(String level, {required bool won}) async {
+    final stats = await loadStats();
+    final l = stats[level] ?? [0, 0];
+    l[won ? 0 : 1]++;
+    stats[level] = l;
+    await _write(_statsKey, stats);
+  }
 }

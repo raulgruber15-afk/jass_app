@@ -105,3 +105,10 @@ Vor dem Hochladen muss geklärt sein, dass du das Vintage-Kartenset in einer ver
 - [ ] Codemagic verbunden, Schlüssel hinterlegt
 - [ ] Datenschutzerklärung online
 - [ ] Rechte an den Kartengrafiken geklärt
+
+
+## Bilder für die Stores (fertig)
+
+Im Projektordner `store-bilder/`:
+- `iphone/`: 6 Bildschirmfotos 1320 × 2868 (6,9-Zoll-iPhone) für App Store Connect.
+- `android/`: dieselben 6 Bilder als 1080 × 2160, dazu `icon_512.png` und `vorschaubild_1024x500.png` für die Google Play Console.

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../engine/cards.dart';
 import 'theme.dart';
 
 /// Kurze Spielregeln und Hinweise zur App.
@@ -71,13 +72,14 @@ class RulesScreen extends StatelessWidget {
                 'nicht mehr hat, und rechnet vor jedem Zug Hunderte mögliche '
                 'Spielverläufe durch. Kein Gegner sieht deine Karten.',
           ),
-          section(
-            'Karten',
-            'Auf der Startseite wählst du Schweizer Blatt (Eicheln, Schellen, '
-                'Rosen, Schilten) oder französisches Blatt (Kreuz, Karo, Herz, '
-                'Pik). Die Regeln sind gleich. Schweizer Blatt: Openclipart, '
-                'mariotomo, gemeinfrei.',
-          ),
+          if (schweizerBlattFreigegeben)
+            section(
+              'Karten',
+              'Auf der Startseite wählst du Schweizer Blatt (Eicheln, Schellen, '
+                  'Rosen, Schilten) oder französisches Blatt (Kreuz, Karo, Herz, '
+                  'Pik). Die Regeln sind gleich. Schweizer Blatt: Openclipart, '
+                  'mariotomo, gemeinfrei.',
+            ),
           section(
             'Offline',
             'Das Spiel braucht kein Internet und sammelt keine Daten.',

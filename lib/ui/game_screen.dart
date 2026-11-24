@@ -53,15 +53,30 @@ class _GameScreenState extends State<GameScreen> {
     _newGame();
   }
 
+  /// Damit eine fertige Partie nur einmal in die Statistik kommt.
+  bool _recorded = false;
+
   void _save(Map<String, dynamic>? snap) {
     if (snap == null) {
       Storage.clearGame();
+      final g = ctrl.game;
+      if (!_recorded &&
+          g.phase == Phase.gameOver &&
+          !ctrl.isMultiplayer &&
+          g.winnerTeam != null) {
+        _recorded = true;
+        Storage.recordResult(
+          ctrl.level.name,
+          won: g.winnerTeam == ctrl.viewer % 2,
+        );
+      }
     } else {
       Storage.saveGame(snap);
     }
   }
 
   void _newGame() {
+    _recorded = false;
     ctrl = GameController(
       settings: widget.settings,
       level: widget.level,
@@ -700,13 +715,19 @@ class _ResultPanel extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 3),
         child: Row(
           children: [
-            Expanded(child: Text(label, style: st)),
+            Expanded(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(label, style: st),
+              ),
+            ),
             SizedBox(
-              width: 90,
+              width: 76,
               child: Text('$a', style: st, textAlign: TextAlign.right),
             ),
             SizedBox(
-              width: 90,
+              width: 76,
               child: Text('$b', style: st, textAlign: TextAlign.right),
             ),
           ],
@@ -774,7 +795,7 @@ class _ResultPanel extends StatelessWidget {
                   const Expanded(child: SizedBox()),
                   for (final t in [0, 1])
                     SizedBox(
-                      width: 90,
+                      width: 76,
                       child: Text(
                         ctrl.teamLabel(t),
                         textAlign: TextAlign.right,
