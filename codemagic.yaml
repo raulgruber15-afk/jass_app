@@ -1,0 +1,95 @@
+# Cloud-Builds mit Codemagic (https://codemagic.io)
+# Damit lässt sich die iPhone-Version ohne eigenen Mac bauen und hochladen.
+# Einrichtung Schritt für Schritt: docs/STORE_ANLEITUNG.md
+#
+# Vor dem ersten Build in Codemagic einrichten:
+#   - Teams > Integrations > App Store Connect: API-Schlüssel hinzufügen,
+#     Name «JassAppStore» (muss mit unten übereinstimmen)
+#   - Code signing identities > Android keystores: Upload-Schlüssel hochladen,
+#     Referenzname «jass_upload»
+#   - Für den Play-Store-Upload: Gruppe «google_play» mit der Variable
+#     GCLOUD_SERVICE_ACCOUNT_CREDENTIALS (JSON des Dienstkontos)
+
+definitions:
+  bundle_id: &bundle_id ch.jassmobile.jass   # PLATZHALTER, siehe Anleitung
+
+workflows:
+  # ---------------------------------------------------------------- Tests
+  tests:
+    name: Tests (Spielregeln)
+    instance_type: linux_x2
+    max_build_duration: 20
+    environment:
+      flutter: stable
+    scripts:
+      - name: Pakete laden
+        script: flutter pub get
+      - name: Code prüfen
+        script: flutter analyze
+      - name: Tests
+        script: flutter test
+
+  # ------------------------------------------------------------- Android
+  android-release:
+    name: Android – Play Store
+    instance_type: linux_x2
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      android_signing:
+        - jass_upload
+      groups:
+        - google_play
+    scripts:
+      - name: Pakete laden
+        script: flutter pub get
+      - name: Tests
+        script: flutter test
+      - name: App-Bundle bauen
+        # Versionsnummer automatisch hochzählen (Play Store verlangt jedes Mal eine höhere)
+        script: |
+          flutter build appbundle --release \
+            --build-number=$(($(google-play get-latest-build-number --package-name "ch.jassmobile.jass" --tracks=internal 2>/dev/null || echo 0) + 1))
+    artifacts:
+      - build/app/outputs/bundle/release/*.aab
+    publishing:
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal        # zuerst «Interner Test», später auf «production» stellen
+        submit_as_draft: true  # Raul gibt im Play Console selbst frei
+
+  # ----------------------------------------------------------------- iOS
+  ios-release:
+    name: iOS – App Store (TestFlight)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    integrations:
+      app_store_connect: JassAppStore
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      vars:
+        # PLATZHALTER: «Apple ID» der App aus App Store Connect (App-Informationen)
+        APP_STORE_APPLE_ID: 0000000000
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: *bundle_id
+    scripts:
+      - name: Pakete laden
+        script: flutter pub get
+      - name: Signierprofile einrichten
+        script: xcode-project use-profiles
+      - name: Tests
+        script: flutter test
+      - name: iOS-App bauen
+        script: |
+          flutter build ipa --release \
+            --export-options-plist=/Users/builder/export_options.plist \
+            --build-number=$(($(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID" 2>/dev/null || echo 0) + 1))
+    artifacts:
+      - build/ios/ipa/*.ipa
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true

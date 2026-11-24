@@ -1,0 +1,6 @@
+# Vorlage: kopieren nach android/key.properties und ausfüllen.
+# key.properties und die .jks-Datei NIE ins Repository hochladen und gut sichern!
+storePassword=DEIN_PASSWORT
+keyPassword=DEIN_PASSWORT
+keyAlias=upload
+storeFile=/PFAD/ZU/upload-keystore.jks

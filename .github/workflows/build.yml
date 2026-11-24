@@ -1,0 +1,32 @@
+# Baut bei jedem Push automatisch:
+#   - prüft die Spielregeln (Tests)
+#   - eine Android-Test-App (APK) zum direkten Installieren
+# Die fertige APK findest du auf GitHub unter «Actions» > letzter Lauf > «Artifacts».
+name: Build
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+      - name: Test-APK bauen
+        run: flutter build apk --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jass-android-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
