@@ -43,22 +43,24 @@ class RulesScreen extends StatelessWidget {
           section(
             'Karten zugeben',
             'Die angespielte Farbe muss angegeben werden. Trumpf darf man immer spielen. '
-                'Der Trumpf-Bube (Puur) muss nie angegeben werden. Untertrumpfen ist '
+                'Der Trumpf-Under bzw. Trumpf-Bube (Puur) muss nie angegeben werden. Untertrumpfen ist '
                 'verboten, ausser man hat nur noch Trumpf. Erlaubte Karten sind '
                 'hervorgehoben, die anderen abgedunkelt.',
           ),
           section(
             'Punkte',
-            'Trumpf: Puur 20, Nell (9) 14, Ass 11, König 4, Dame 3, 10 zählt 10. '
-                'Nebenfarben: Ass 11, König 4, Dame 3, Bube 2, 10 zählt 10. '
+            'Trumpf: Puur (Under/Bube) 20, Nell (9) 14, Ass 11, König 4, '
+                'Ober/Dame 3, Banner/10 zählt 10. '
+                'Nebenfarben: Ass 11, König 4, Ober/Dame 3, Under/Bube 2, '
+                'Banner/10 zählt 10. '
                 'Obenabe und Undenufe: 8 zählt 8 (Undenufe: 6 zählt 11, Ass 0). '
                 'Letzter Stich +5, Match (alle Stiche) 257.',
           ),
           section(
             'Weis und Stöck',
-            'Folgen ab drei Karten (20, 50, 100 …) und vier Gleiche (Buben 200, '
+            'Folgen ab drei Karten (20, 50, 100 …) und vier Gleiche (Puure 200, '
                 'Neuner 150, sonst 100) werden automatisch gewiesen. Nur das Team '
-                'mit dem höchsten Weis zählt. Stöck (König und Dame im Trumpf) '
+                'mit dem höchsten Weis zählt. Stöck (König und Ober/Dame im Trumpf) '
                 'gibt 20 Punkte.',
           ),
           section(
@@ -68,6 +70,13 @@ class RulesScreen extends StatelessWidget {
                 'Profi merkt sich alle gespielten Karten, erkennt, wer welche Farbe '
                 'nicht mehr hat, und rechnet vor jedem Zug Hunderte mögliche '
                 'Spielverläufe durch. Kein Gegner sieht deine Karten.',
+          ),
+          section(
+            'Karten',
+            'Auf der Startseite wählst du Schweizer Blatt (Eicheln, Schellen, '
+                'Rosen, Schilten) oder französisches Blatt (Kreuz, Karo, Herz, '
+                'Pik). Die Regeln sind gleich. Schweizer Blatt: Openclipart, '
+                'mariotomo, gemeinfrei.',
           ),
           section(
             'Offline',

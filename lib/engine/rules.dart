@@ -77,10 +77,10 @@ class Weis {
   }
 
   static String _plural(Rank r) => switch (r) {
-    Rank.jack => 'Buben',
+    Rank.jack => cardDeck == CardDeck.schweizer ? 'Under' : 'Buben',
+    Rank.queen => cardDeck == CardDeck.schweizer ? 'Ober' : 'Damen',
     Rank.nine => 'Neuner',
-    Rank.ten => 'Zehner',
-    Rank.queen => 'Damen',
+    Rank.ten => cardDeck == CardDeck.schweizer ? 'Banner' : 'Zehner',
     Rank.king => 'Könige',
     Rank.ace => 'Asse',
     _ => r.label,

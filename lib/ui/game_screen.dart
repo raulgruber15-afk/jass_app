@@ -220,7 +220,6 @@ class _ModeBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final red = mode.isTrump && mode.trumpSuit!.isRed;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
@@ -231,13 +230,7 @@ class _ModeBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            mode.symbol,
-            style: TextStyle(
-              fontSize: 20,
-              color: red ? JassColors.red : JassColors.navy,
-            ),
-          ),
+          ModeSymbol(mode, size: 20),
           const SizedBox(width: 6),
           Text(
             multiplier > 1 ? '${mode.label} ×$multiplier' : mode.label,
@@ -648,13 +641,22 @@ class _TrumpChooser extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                '${m.symbol} ${m.label}',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: red ? JassColors.red : JassColors.navy,
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ModeSymbol(m, size: 17),
+                  const SizedBox(width: 5),
+                  Text(
+                    m.label,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: red && cardDeck == CardDeck.franzoesisch
+                          ? JassColors.red
+                          : JassColors.navy,
+                    ),
+                  ),
+                ],
               ),
               if (mult > 1)
                 Text(
@@ -742,10 +744,17 @@ class _ResultPanel extends StatelessWidget {
             ),
             if (r != null) ...[
               const SizedBox(height: 4),
-              Text(
-                '${r.mode.symbol} ${r.mode.label}'
-                '${r.multiplier > 1 ? ' (zählt ×${r.multiplier})' : ''}',
-                style: const TextStyle(color: JassColors.navy),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ModeSymbol(r.mode, size: 15),
+                  const SizedBox(width: 5),
+                  Text(
+                    '${r.mode.label}'
+                    '${r.multiplier > 1 ? ' (zählt ×${r.multiplier})' : ''}',
+                    style: const TextStyle(color: JassColors.navy),
+                  ),
+                ],
               ),
               if (r.matchTeam != null)
                 Padding(

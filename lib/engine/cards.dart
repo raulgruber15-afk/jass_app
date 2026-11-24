@@ -1,21 +1,35 @@
-// Karten, Farben und Werte für den Jass (französisches Blatt, 6 bis Ass).
+// Karten, Farben und Werte für den Jass (36 Karten, 6 bis Ass).
 //
 // Dieser Teil weiss nichts vom Bildschirm. Er wird von der Spiellogik,
 // den Computergegnern und später vom WLAN-Spiel gemeinsam benutzt.
 
-/// Die vier Farben des französischen Blatts.
+/// Welches Kartenbild gezeigt wird. Die Regeln sind bei beiden gleich,
+/// nur Namen und Bilder ändern sich.
+enum CardDeck { schweizer, franzoesisch }
+
+/// Aktuell gewähltes Blatt (Einstellung auf der Startseite).
+CardDeck cardDeck = CardDeck.schweizer;
+
+bool get _swiss => cardDeck == CardDeck.schweizer;
+
+/// Die vier Farben. Intern französisch benannt; im Schweizer Blatt
+/// entspricht Kreuz = Eicheln, Herz = Rosen, Pik = Schilten, Karo = Schellen.
 enum Suit {
-  kreuz('Kreuz', '♣'),
-  herz('Herz', '♥'),
-  pik('Pik', '♠'),
-  karo('Karo', '♦');
+  kreuz('Kreuz', 'Eicheln', '♣'),
+  herz('Herz', 'Rosen', '♥'),
+  pik('Pik', 'Schilten', '♠'),
+  karo('Karo', 'Schellen', '♦');
 
-  const Suit(this.label, this.symbol);
+  const Suit(this.frenchLabel, this.swissLabel, this.symbol);
 
-  /// Name auf Deutsch, z. B. «Herz».
-  final String label;
+  final String frenchLabel;
+  final String swissLabel;
 
-  /// Symbol, z. B. «♥».
+  /// Name im gewählten Blatt, z. B. «Herz» oder «Rosen».
+  String get label => _swiss ? swissLabel : frenchLabel;
+
+  /// Französisches Symbol, z. B. «♥» (für Schweizer Farben gibt es
+  /// kein Schriftzeichen; die App zeigt dort ein Bild).
   final String symbol;
 
   bool get isRed => this == Suit.herz || this == Suit.karo;
@@ -34,9 +48,19 @@ enum Rank {
   king('König', 'koenig'),
   ace('Ass', 'ass');
 
-  const Rank(this.label, this.fileName);
+  const Rank(this.frenchLabel, this.fileName);
 
-  final String label;
+  final String frenchLabel;
+
+  /// Name im gewählten Blatt (Schweizer Blatt: Banner, Under, Ober).
+  String get label => !_swiss
+      ? frenchLabel
+      : switch (this) {
+          Rank.ten => 'Banner',
+          Rank.jack => 'Under',
+          Rank.queen => 'Ober',
+          _ => frenchLabel,
+        };
 
   /// Teil des Dateinamens der Kartengrafik, z. B. «koenig».
   final String fileName;

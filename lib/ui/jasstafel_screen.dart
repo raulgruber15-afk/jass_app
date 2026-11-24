@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../engine/schieber.dart';
+import 'card_widget.dart';
 import 'game_controller.dart';
 
 /// Jasstafel: alle Runden mit Spielart und Punkten, wie auf der
@@ -145,15 +146,27 @@ class JasstafelScreen extends StatelessWidget {
                                 '${r.nr}',
                                 style: const TextStyle(color: _chalkDim),
                               ),
-                              Text(
-                                '${r.result.mode.symbol} ${r.result.mode.label}'
-                                '${r.result.multiplier > 1 ? ' ×${r.result.multiplier}' : ''}'
-                                '${r.result.matchTeam != null ? '  Match!' : ''}',
-                                style: const TextStyle(
-                                  color: _chalk,
-                                  fontSize: 15,
-                                ),
-                                overflow: TextOverflow.ellipsis,
+                              Row(
+                                children: [
+                                  ModeSymbol(
+                                    r.result.mode,
+                                    size: 15,
+                                    color: _chalk,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Flexible(
+                                    child: Text(
+                                      '${r.result.mode.label}'
+                                      '${r.result.multiplier > 1 ? ' ×${r.result.multiplier}' : ''}'
+                                      '${r.result.matchTeam != null ? '  Match!' : ''}',
+                                      style: const TextStyle(
+                                        color: _chalk,
+                                        fontSize: 15,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
                               ),
                               Text('${r.a}', style: cell),
                               Text('${r.b}', style: cell),

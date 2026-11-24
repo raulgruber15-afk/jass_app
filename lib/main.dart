@@ -73,6 +73,11 @@ class _HomeScreenState extends State<HomeScreen> {
         target = s['target'] as int? ?? target;
         multipliers = s['multipliers'] as bool? ?? multipliers;
         fast = s['fast'] as bool? ?? fast;
+        final deck = s['deck'] as String?;
+        cardDeck = CardDeck.values.firstWhere(
+          (d) => d.name == deck,
+          orElse: () => cardDeck,
+        );
         final lv = s['level'] as String?;
         level = BotLevel.values.firstWhere(
           (l) => l.name == lv,
@@ -94,6 +99,7 @@ class _HomeScreenState extends State<HomeScreen> {
     'target': target,
     'multipliers': multipliers,
     'fast': fast,
+    'deck': cardDeck.name,
     'level': level.name,
     'together': together,
     'names': [for (final c in names) c.text],
@@ -153,9 +159,19 @@ class _HomeScreenState extends State<HomeScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     // Kartenbilder vorladen, damit beim ersten Austeilen nichts flackert.
-    for (final c in [...fullDeck.map((c) => c.assetName), 'rueckseite']) {
-      precacheImage(AssetImage('assets/cards/$c.png'), context);
+    _precache();
+  }
+
+  void _precache() {
+    for (final path in cardAssetPaths) {
+      precacheImage(AssetImage(path), context);
     }
+  }
+
+  void _setDeck(CardDeck d) {
+    setState(() => cardDeck = d);
+    _precache();
+    _saveSettings();
   }
 
   void _play() {
@@ -194,7 +210,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const _Logo(),
+                    _Logo(key: ValueKey(cardDeck)),
                     const SizedBox(height: 8),
                     const Text(
                       'Jass',
@@ -291,6 +307,24 @@ class _HomeScreenState extends State<HomeScreen> {
                           setState(() => target = s.first),
                     ),
                     const SizedBox(height: 16),
+                    const Text('Karten', style: labelStyle),
+                    const SizedBox(height: 6),
+                    SegmentedButton<CardDeck>(
+                      showSelectedIcon: false,
+                      segments: const [
+                        ButtonSegment(
+                          value: CardDeck.schweizer,
+                          label: Text('Schweizer'),
+                        ),
+                        ButtonSegment(
+                          value: CardDeck.franzoesisch,
+                          label: Text('Französisch'),
+                        ),
+                      ],
+                      selected: {cardDeck},
+                      onSelectionChanged: (s) => _setDeck(s.first),
+                    ),
+                    const SizedBox(height: 16),
                     const Text('Gegner', style: labelStyle),
                     const SizedBox(height: 6),
                     SegmentedButton<BotLevel>(
@@ -320,9 +354,14 @@ class _HomeScreenState extends State<HomeScreen> {
                         'Mit Multiplikatoren',
                         style: labelStyle,
                       ),
-                      subtitle: const Text(
-                        'Herz/Karo ×1, Pik/Kreuz ×2, Obenabe/Undenufe ×3',
-                        style: TextStyle(color: Colors.white60, fontSize: 12),
+                      subtitle: Text(
+                        '${Suit.herz.label}/${Suit.karo.label} ×1, '
+                        '${Suit.pik.label}/${Suit.kreuz.label} ×2, '
+                        'Obenabe/Undenufe ×3',
+                        style: const TextStyle(
+                          color: Colors.white60,
+                          fontSize: 12,
+                        ),
                       ),
                       value: multipliers,
                       onChanged: (v) => setState(() => multipliers = v),
@@ -421,7 +460,7 @@ extension on _HomeScreenState {
 }
 
 class _Logo extends StatelessWidget {
-  const _Logo();
+  const _Logo({super.key});
 
   @override
   Widget build(BuildContext context) {
