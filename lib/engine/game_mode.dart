@@ -6,12 +6,8 @@ enum ModeType { trump, obenabe, undenufe }
 /// Die gewählte Spielart einer Runde («Was isch Trumpf?»).
 class GameMode {
   const GameMode.trump(Suit this.trumpSuit) : type = ModeType.trump;
-  const GameMode.obenabe()
-      : type = ModeType.obenabe,
-        trumpSuit = null;
-  const GameMode.undenufe()
-      : type = ModeType.undenufe,
-        trumpSuit = null;
+  const GameMode.obenabe() : type = ModeType.obenabe, trumpSuit = null;
+  const GameMode.undenufe() : type = ModeType.undenufe, trumpSuit = null;
 
   final ModeType type;
 
@@ -33,16 +29,16 @@ class GameMode {
   bool isTrumpCard(JassCard c) => isTrump && c.suit == trumpSuit;
 
   String get label => switch (type) {
-        ModeType.trump => trumpSuit!.label,
-        ModeType.obenabe => 'Obenabe',
-        ModeType.undenufe => 'Undenufe',
-      };
+    ModeType.trump => trumpSuit!.label,
+    ModeType.obenabe => 'Obenabe',
+    ModeType.undenufe => 'Undenufe',
+  };
 
   String get symbol => switch (type) {
-        ModeType.trump => trumpSuit!.symbol,
-        ModeType.obenabe => '↓',
-        ModeType.undenufe => '↑',
-      };
+    ModeType.trump => trumpSuit!.symbol,
+    ModeType.obenabe => '↓',
+    ModeType.undenufe => '↑',
+  };
 
   /// Kartenpunkte einer Karte in dieser Spielart.
   int points(JassCard c) {

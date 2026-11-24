@@ -14,8 +14,8 @@ import 'schieber.dart';
 /// Schummelt nicht: Sieht nur die eigene Hand und was auf dem Tisch lag.
 class ProfiBot implements JassBot {
   ProfiBot({Random? rng, this.budget = 480})
-      : _rng = rng ?? Random(),
-        _policy = RuleBot(rng ?? Random());
+    : _rng = rng ?? Random(),
+      _policy = RuleBot(rng ?? Random());
 
   final Random _rng;
 
@@ -29,8 +29,7 @@ class ProfiBot implements JassBot {
 
   @override
   GameMode? chooseMode(PlayerView view, {required bool canSchieben}) {
-    final unknown =
-        fullDeck.where((c) => !view.hand.contains(c)).toList();
+    final unknown = fullDeck.where((c) => !view.hand.contains(c)).toList();
     final perMode = max(12, budget ~/ 8);
     GameMode? best;
     var bestScore = double.negativeInfinity;
@@ -163,9 +162,15 @@ class ProfiBot implements JassBot {
   /// Unbekannte Karten zufällig, aber passend zu dem, was man weiss,
   /// auf die anderen drei Sitze verteilen.
   List<List<JassCard>> _sampleHands(
-      PlayerView view, List<JassCard> unknown, _Constraints c) {
+    PlayerView view,
+    List<JassCard> unknown,
+    _Constraints c,
+  ) {
     final mode = view.mode!;
-    final others = [for (var s = 0; s < 4; s++) if (s != view.seat) s];
+    final others = [
+      for (var s = 0; s < 4; s++)
+        if (s != view.seat) s,
+    ];
     for (var attempt = 0; attempt < 30; attempt++) {
       final hands = List.generate(4, (_) => <JassCard>[]);
       hands[view.seat] = List.of(view.hand);
@@ -180,7 +185,9 @@ class ProfiBot implements JassBot {
       var ok = true;
       for (final card in cards) {
         final options = others
-            .where((s) => hands[s].length < need[s] && _allowed(c, s, card, mode))
+            .where(
+              (s) => hands[s].length < need[s] && _allowed(c, s, card, mode),
+            )
             .toList();
         if (options.isEmpty) {
           ok = false;
@@ -247,18 +254,20 @@ class ProfiBot implements JassBot {
       final legal = legalCards(hand, t, mode);
       final card = legal.length == 1
           ? legal.first
-          : _policy.chooseCard(PlayerView(
-              seat: seat,
-              hand: hand,
-              trick: t,
-              trickSeats: ts,
-              mode: mode,
-              chooser: chooser,
-              geschoben: false,
-              playedCards: seen,
-              legal: legal,
-              handSizes: const [9, 9, 9, 9],
-            ));
+          : _policy.chooseCard(
+              PlayerView(
+                seat: seat,
+                hand: hand,
+                trick: t,
+                trickSeats: ts,
+                mode: mode,
+                chooser: chooser,
+                geschoben: false,
+                playedCards: seen,
+                legal: legal,
+                handSizes: const [9, 9, 9, 9],
+              ),
+            );
       hand.remove(card);
       t.add(card);
       ts.add(seat);

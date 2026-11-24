@@ -23,7 +23,8 @@ class RandomBot implements JassBot {
   GameMode? chooseMode(PlayerView view, {required bool canSchieben}) {
     // Farbe mit den meisten Karten wird Trumpf.
     final counts = {
-      for (final s in Suit.values) s: view.hand.where((c) => c.suit == s).length
+      for (final s in Suit.values)
+        s: view.hand.where((c) => c.suit == s).length,
     };
     final best = counts.entries.reduce((a, b) => a.value >= b.value ? a : b);
     return GameMode.trump(best.key);
@@ -135,9 +136,13 @@ class RuleBot implements JassBot {
 
   JassCard _lowest(List<JassCard> cards, GameMode mode) {
     return cards.reduce((a, b) {
-      final pa = mode.points(a) * 10 + mode.strengthInSuit(a) +
+      final pa =
+          mode.points(a) * 10 +
+          mode.strengthInSuit(a) +
           (mode.isTrumpCard(a) ? 50 : 0);
-      final pb = mode.points(b) * 10 + mode.strengthInSuit(b) +
+      final pb =
+          mode.points(b) * 10 +
+          mode.strengthInSuit(b) +
           (mode.isTrumpCard(b) ? 50 : 0);
       return pa <= pb ? a : b;
     });
@@ -150,7 +155,9 @@ class RuleBot implements JassBot {
     if (mode.isTrump) {
       final trumps = legal.where(mode.isTrumpCard).toList();
       // Trumpf ziehen, wenn wir Trumpf gemacht haben und noch Trümpfe draussen sind.
-      if (myTeamChose && trumps.isNotEmpty && _trumpsOutstanding(view, mode) > 0) {
+      if (myTeamChose &&
+          trumps.isNotEmpty &&
+          _trumpsOutstanding(view, mode) > 0) {
         final bockTrump = trumps.where((c) => _isBock(c, view, mode)).toList();
         if (bockTrump.isNotEmpty) return bockTrump.first;
         if (trumps.length >= 3) return _lowest(trumps, mode);
@@ -179,8 +186,9 @@ class RuleBot implements JassBot {
     for (final c in legal) {
       bySuit.putIfAbsent(c.suit, () => []).add(c);
     }
-    final longest =
-        bySuit.values.reduce((a, b) => a.length >= b.length ? a : b);
+    final longest = bySuit.values.reduce(
+      (a, b) => a.length >= b.length ? a : b,
+    );
     return _lowest(longest, mode);
   }
 
@@ -195,13 +203,14 @@ class RuleBot implements JassBot {
     final isLast = trick.length == 3;
     final trickPoints = trick.fold<int>(0, (s, c) => s + mode.points(c));
 
-    final winners =
-        legal.where((c) => mode.beats(c, winningCard, lead)).toList();
+    final winners = legal
+        .where((c) => mode.beats(c, winningCard, lead))
+        .toList();
 
     if (partnerWins) {
-      final safe = isLast ||
-          (mode.isTrumpCard(winningCard) &&
-              _isBock(winningCard, view, mode)) ||
+      final safe =
+          isLast ||
+          (mode.isTrumpCard(winningCard) && _isBock(winningCard, view, mode)) ||
           (!mode.isTrumpCard(winningCard) &&
               _isBock(winningCard, view, mode) &&
               _trumpsOutstanding(view, mode) == 0);
@@ -212,8 +221,9 @@ class RuleBot implements JassBot {
 
     if (winners.isNotEmpty) {
       // Billigste Karte nehmen, die den Stich holt.
-      final nonTrumpWinners =
-          winners.where((c) => !mode.isTrumpCard(c)).toList();
+      final nonTrumpWinners = winners
+          .where((c) => !mode.isTrumpCard(c))
+          .toList();
       if (nonTrumpWinners.isNotEmpty) {
         if (isLast || _isBock(_strongest(nonTrumpWinners, mode), view, mode)) {
           return isLast
@@ -240,8 +250,9 @@ class RuleBot implements JassBot {
     return _lowest(nonTrump.isNotEmpty ? nonTrump : legal, mode);
   }
 
-  JassCard _strongest(List<JassCard> cards, GameMode mode) => cards
-      .reduce((a, b) => mode.strengthInSuit(a) >= mode.strengthInSuit(b) ? a : b);
+  JassCard _strongest(List<JassCard> cards, GameMode mode) => cards.reduce(
+    (a, b) => mode.strengthInSuit(a) >= mode.strengthInSuit(b) ? a : b,
+  );
 
   JassCard _cheapestWinner(List<JassCard> cards, GameMode mode) =>
       cards.reduce((a, b) {
@@ -253,14 +264,18 @@ class RuleBot implements JassBot {
   /// Dem Partner Punkte zuspielen, ohne Puur oder Nell herzugeben.
   JassCard _schmieren(List<JassCard> legal, GameMode mode) {
     final candidates = legal
-        .where((c) =>
-            !(mode.isTrumpCard(c) && (c.rank == Rank.jack || c.rank == Rank.nine)))
+        .where(
+          (c) =>
+              !(mode.isTrumpCard(c) &&
+                  (c.rank == Rank.jack || c.rank == Rank.nine)),
+        )
         .toList();
     final pool = candidates.isNotEmpty ? candidates : legal;
     return pool.reduce((a, b) {
       // Ein Ass in Obenabe/Trumpf ist oft selbst ein Bock: 10er bevorzugen.
       int score(JassCard c) =>
-          mode.points(c) * 2 - (mode.isTrumpCard(c) ? 15 : 0) -
+          mode.points(c) * 2 -
+          (mode.isTrumpCard(c) ? 15 : 0) -
           (c.rank == Rank.ace && mode.type != ModeType.undenufe ? 8 : 0);
       return score(a) >= score(b) ? a : b;
     });

@@ -113,7 +113,7 @@ class RoundResult {
 /// Klasse egal: Sie nimmt nur Züge entgegen und prüft sie.
 class SchieberGame {
   SchieberGame({this.settings = const SchieberSettings(), Random? random})
-      : _rng = random ?? Random();
+    : _rng = random ?? Random();
 
   final SchieberSettings settings;
   final Random _rng;
@@ -217,8 +217,7 @@ class SchieberGame {
     toAct = chooser;
   }
 
-  int _seatWith(JassCard card) =>
-      hands.indexWhere((h) => h.contains(card));
+  int _seatWith(JassCard card) => hands.indexWhere((h) => h.contains(card));
 
   /// Darf die Person am Zug noch schieben?
   bool get canSchieben => phase == Phase.chooseMode && !geschoben;
@@ -315,7 +314,9 @@ class SchieberGame {
     var pts = trick.fold<int>(0, (s, c) => s + m.points(c));
     final isLast = tricks.length == 8;
     if (isLast) pts += 5;
-    tricks.add(CompletedTrick(List.of(trick), List.of(trickSeats), winner, pts));
+    tricks.add(
+      CompletedTrick(List.of(trick), List.of(trickSeats), winner, pts),
+    );
     roundCardPoints[teamOf(winner)] += pts;
     trick.clear();
     trickSeats.clear();
@@ -398,24 +399,24 @@ class SchieberGame {
   /// Alle Karten, die in dieser Runde schon gespielt wurden
   /// (das darf sich jede Person merken).
   List<JassCard> get playedCards => [
-        for (final t in tricks) ...t.cards,
-        ...trick,
-      ];
+    for (final t in tricks) ...t.cards,
+    ...trick,
+  ];
 
   /// Sicht eines Sitzes auf das Spiel: nur die eigenen Karten.
   PlayerView viewFor(int seat) => PlayerView(
-        seat: seat,
-        hand: List.unmodifiable(hands[seat]),
-        trick: List.unmodifiable(trick),
-        trickSeats: List.unmodifiable(trickSeats),
-        mode: mode,
-        chooser: chooser,
-        geschoben: geschoben,
-        playedCards: List.unmodifiable(playedCards),
-        legal: legalFor(seat),
-        handSizes: [for (final h in hands) h.length],
-        pastTricks: List.unmodifiable(tricks),
-      );
+    seat: seat,
+    hand: List.unmodifiable(hands[seat]),
+    trick: List.unmodifiable(trick),
+    trickSeats: List.unmodifiable(trickSeats),
+    mode: mode,
+    chooser: chooser,
+    geschoben: geschoben,
+    playedCards: List.unmodifiable(playedCards),
+    legal: legalFor(seat),
+    handSizes: [for (final h in hands) h.length],
+    pastTricks: List.unmodifiable(tricks),
+  );
 }
 
 /// Alles, was ein Sitz wissen darf. Computergegner bekommen nur das.
@@ -447,4 +448,148 @@ class PlayerView {
 
   /// Fertige Stiche dieser Runde (wer welche Karte gespielt hat).
   final List<CompletedTrick> pastTricks;
+}
+
+// ------------------------------------------------------------- Speichern
+//
+// Der ganze Spielstand als einfache Map (JSON), damit ein angefangenes
+// Spiel nach dem Schliessen der App weitergeht.
+
+List<int> _ids(List<JassCard> cs) => [for (final c in cs) c.id];
+List<JassCard> _cards(dynamic l) => [
+  for (final i in (l as List)) JassCard.fromId(i as int),
+];
+List<int> _ints(dynamic l) => [for (final i in (l as List)) i as int];
+
+Map<String, dynamic> _modeToJson(GameMode m) => {
+  't': m.type.index,
+  if (m.trumpSuit != null) 's': m.trumpSuit!.index,
+};
+
+GameMode _modeFromJson(Map<String, dynamic> j) =>
+    switch (ModeType.values[j['t'] as int]) {
+      ModeType.trump => GameMode.trump(Suit.values[j['s'] as int]),
+      ModeType.obenabe => const GameMode.obenabe(),
+      ModeType.undenufe => const GameMode.undenufe(),
+    };
+
+Map<String, dynamic> _weisToJson(Weis w) => {
+  'c': _ids(w.cards),
+  'p': w.points,
+  'q': w.isSequence,
+};
+Weis _weisFromJson(Map<String, dynamic> j) =>
+    Weis(_cards(j['c']), j['p'] as int, isSequence: j['q'] as bool);
+
+Map<String, dynamic> _resultToJson(RoundResult r) => {
+  'm': _modeToJson(r.mode),
+  'x': r.multiplier,
+  'c': r.cardPoints,
+  'w': r.weisPoints,
+  's': r.stoeckPoints,
+  if (r.matchTeam != null) 'mt': r.matchTeam,
+};
+RoundResult _resultFromJson(Map<String, dynamic> j) => RoundResult(
+  mode: _modeFromJson(Map<String, dynamic>.from(j['m'] as Map)),
+  multiplier: j['x'] as int,
+  cardPoints: _ints(j['c']),
+  weisPoints: _ints(j['w']),
+  stoeckPoints: _ints(j['s']),
+  matchTeam: j['mt'] as int?,
+);
+
+extension SchieberSave on SchieberGame {
+  Map<String, dynamic> toJson() => {
+    'v': 1,
+    'target': settings.targetPoints,
+    'mult': settings.useMultipliers,
+    'totals': totals,
+    'history': [for (final r in history) _resultToJson(r)],
+    'round': roundNumber,
+    'winner': winnerTeam,
+    'phase': phase.index,
+    'hands': [for (final h in hands) _ids(h)],
+    'chooser': chooser,
+    'geschoben': geschoben,
+    if (mode != null) 'mode': _modeToJson(mode!),
+    'toAct': toAct,
+    'trick': _ids(trick),
+    'trickSeats': trickSeats,
+    'tricks': [
+      for (final t in tricks)
+        {'c': _ids(t.cards), 's': t.seats, 'w': t.winner, 'p': t.points},
+    ],
+    'rcp': roundCardPoints,
+    'rw': roundWeis,
+    'rs': roundStoeck,
+    'ann': [
+      for (final a in announcements)
+        {
+          'seat': a.seat,
+          'w': [for (final w in a.weise) _weisToJson(w)],
+        },
+    ],
+    'wwt': weisWinnerTeam,
+    'ss': stoeckSeat,
+    'sa': stoeckAnnounced,
+    if (lastResult != null) 'last': _resultToJson(lastResult!),
+  };
+
+  static SchieberGame fromJson(Map<String, dynamic> j) {
+    final g = SchieberGame(
+      settings: SchieberSettings(
+        targetPoints: j['target'] as int,
+        useMultipliers: j['mult'] as bool,
+      ),
+    );
+    Map<String, dynamic> m(dynamic x) => Map<String, dynamic>.from(x as Map);
+    final t = _ints(j['totals']);
+    g.totals
+      ..[0] = t[0]
+      ..[1] = t[1];
+    g.history.addAll([
+      for (final r in j['history'] as List) _resultFromJson(m(r)),
+    ]);
+    g.roundNumber = j['round'] as int;
+    g.winnerTeam = j['winner'] as int?;
+    g.phase = Phase.values[j['phase'] as int];
+    g.hands = [for (final h in j['hands'] as List) _cards(h)];
+    g.chooser = j['chooser'] as int;
+    g.geschoben = j['geschoben'] as bool;
+    g.mode = j['mode'] == null ? null : _modeFromJson(m(j['mode']));
+    g.toAct = j['toAct'] as int;
+    g.trick.addAll(_cards(j['trick']));
+    g.trickSeats.addAll(_ints(j['trickSeats']));
+    for (final tr in j['tricks'] as List) {
+      final x = m(tr);
+      g.tricks.add(
+        CompletedTrick(
+          _cards(x['c']),
+          _ints(x['s']),
+          x['w'] as int,
+          x['p'] as int,
+        ),
+      );
+    }
+    void copy(List<int> to, dynamic from) {
+      final f = _ints(from);
+      to[0] = f[0];
+      to[1] = f[1];
+    }
+
+    copy(g.roundCardPoints, j['rcp']);
+    copy(g.roundWeis, j['rw']);
+    copy(g.roundStoeck, j['rs']);
+    g.announcements = [
+      for (final a in j['ann'] as List)
+        WeisAnnouncement(m(a)['seat'] as int, [
+          for (final w in m(a)['w'] as List) _weisFromJson(m(w)),
+        ]),
+    ];
+    g.weisWinnerTeam = j['wwt'] as int?;
+    g.stoeckSeat = j['ss'] as int?;
+    g.stoeckAnnounced = j['sa'] as bool;
+    g.lastResult = j['last'] == null ? null : _resultFromJson(m(j['last']));
+    return g;
+  }
 }

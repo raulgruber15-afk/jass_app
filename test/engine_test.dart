@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -243,6 +244,32 @@ void main() {
       expect(profi, greaterThan(rule));
     });
 
+    test('Spielstand speichern und laden ergibt dasselbe Spiel', () {
+      for (var seed = 0; seed < 20; seed++) {
+        final g = SchieberGame(
+            settings: const SchieberSettings(targetPoints: 100000),
+            random: Random(seed));
+        g.start();
+        final bots = List.generate(4, (s) => RuleBot(Random(seed * 4 + s)));
+        // Mitten in der Runde anhalten.
+        final stopAfter = 1 + seed;
+        var steps = 0;
+        while (steps < stopAfter && g.phase != Phase.roundOver) {
+          _step(g, bots);
+          steps++;
+        }
+        final json = jsonDecode(jsonEncode(g.toJson())) as Map<String, dynamic>;
+        final copy = SchieberSave.fromJson(json);
+        expect(jsonEncode(copy.toJson()), jsonEncode(g.toJson()));
+        // Beide weiterspielen mit gleichen Bots: gleiches Ergebnis.
+        final b1 = List.generate(4, (s) => RuleBot(Random(99 + s)));
+        final b2 = List.generate(4, (s) => RuleBot(Random(99 + s)));
+        _playRound(g, b1);
+        _playRound(copy, b2);
+        expect(copy.totals, g.totals);
+      }
+    });
+
     test('Stöck wird gezählt', () {
       final g = SchieberGame(
           settings: const SchieberSettings(useMultipliers: false, targetPoints: 100000));
@@ -273,6 +300,12 @@ void main() {
 
 void _playRound(SchieberGame g, List<JassBot> bots) {
   while (g.phase != Phase.roundOver && g.phase != Phase.gameOver) {
+    _step(g, bots);
+  }
+}
+
+void _step(SchieberGame g, List<JassBot> bots) {
+  {
     switch (g.phase) {
       case Phase.chooseMode:
         final seat = g.toAct;

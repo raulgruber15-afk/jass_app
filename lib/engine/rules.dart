@@ -11,7 +11,10 @@ import 'game_mode.dart';
 /// * Untertrumpfen ist verboten: Hat schon jemand mit Trumpf gestochen, darf
 ///   man keinen tieferen Trumpf dazulegen, ausser man hat nur noch Trümpfe.
 List<JassCard> legalCards(
-    List<JassCard> hand, List<JassCard> trick, GameMode mode) {
+  List<JassCard> hand,
+  List<JassCard> trick,
+  GameMode mode,
+) {
   if (trick.isEmpty || hand.length <= 1) return List.of(hand);
   final lead = trick.first.suit;
   final sameSuit = hand.where((c) => c.suit == lead).toList();
@@ -74,14 +77,14 @@ class Weis {
   }
 
   static String _plural(Rank r) => switch (r) {
-        Rank.jack => 'Buben',
-        Rank.nine => 'Neuner',
-        Rank.ten => 'Zehner',
-        Rank.queen => 'Damen',
-        Rank.king => 'Könige',
-        Rank.ace => 'Asse',
-        _ => r.label,
-      };
+    Rank.jack => 'Buben',
+    Rank.nine => 'Neuner',
+    Rank.ten => 'Zehner',
+    Rank.queen => 'Damen',
+    Rank.king => 'Könige',
+    Rank.ace => 'Asse',
+    _ => r.label,
+  };
 
   @override
   String toString() => '$label ($points)';
@@ -97,7 +100,10 @@ const _sequencePoints = {3: 20, 4: 50, 5: 100, 6: 150, 7: 200, 8: 250, 9: 300};
 List<Weis> findWeis(List<JassCard> hand) {
   final result = <Weis>[];
   for (final s in Suit.values) {
-    final ranks = hand.where((c) => c.suit == s).map((c) => c.rank.index).toSet();
+    final ranks = hand
+        .where((c) => c.suit == s)
+        .map((c) => c.rank.index)
+        .toSet();
     var i = 0;
     while (i < 9) {
       if (!ranks.contains(i)) {
@@ -110,11 +116,13 @@ List<Weis> findWeis(List<JassCard> hand) {
       }
       final len = j - i + 1;
       if (len >= 3) {
-        result.add(Weis(
-          [for (var k = i; k <= j; k++) JassCard(s, Rank.values[k])],
-          _sequencePoints[len]!,
-          isSequence: true,
-        ));
+        result.add(
+          Weis(
+            [for (var k = i; k <= j; k++) JassCard(s, Rank.values[k])],
+            _sequencePoints[len]!,
+            isSequence: true,
+          ),
+        );
       }
       i = j + 1;
     }

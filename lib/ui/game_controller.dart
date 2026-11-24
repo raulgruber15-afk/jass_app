@@ -33,11 +33,13 @@ const List<SeatSetup> defaultSeats = [
 class GameController extends ChangeNotifier {
   GameController({
     required SchieberSettings settings,
-    BotLevel level = BotLevel.stammtisch,
+    this.level = BotLevel.stammtisch,
     this.fast = false,
     List<SeatSetup> seats = defaultSeats,
-  })  : game = SchieberGame(settings: settings),
-        seats = List.unmodifiable(seats) {
+    SchieberGame? resumeFrom,
+    this.onSave,
+  }) : game = resumeFrom ?? SchieberGame(settings: settings),
+       seats = List.unmodifiable(seats) {
     for (var s = 0; s < 4; s++) {
       bots[s] = seats[s].human
           ? null
@@ -56,6 +58,48 @@ class GameController extends ChangeNotifier {
   final List<SeatSetup> seats;
   final List<JassBot?> bots = [null, null, null, null];
   final bool fast;
+  final BotLevel level;
+
+  /// Wird nach jeder Änderung mit dem ganzen Spielstand aufgerufen
+  /// (null = Spiel ist fertig, gespeicherten Stand löschen).
+  final void Function(Map<String, dynamic>? snapshot)? onSave;
+
+  /// Spielstand inkl. Sitzen und Gegner-Stufe, zum Speichern.
+  Map<String, dynamic> snapshot() => {
+    'game': game.toJson(),
+    'level': level.index,
+    'fast': fast,
+    'seats': [
+      for (final s in seats) {'name': s.name, 'human': s.human},
+    ],
+  };
+
+  /// Gespeichertes Spiel wiederherstellen.
+  static GameController restore(
+    Map<String, dynamic> snap, {
+    void Function(Map<String, dynamic>?)? onSave,
+  }) {
+    final game = SchieberSave.fromJson(
+      Map<String, dynamic>.from(snap['game'] as Map),
+    );
+    return GameController(
+      settings: game.settings,
+      level: BotLevel.values[snap['level'] as int],
+      fast: snap['fast'] as bool,
+      seats: [
+        for (final s in snap['seats'] as List)
+          SeatSetup(
+            name: (s as Map)['name'] as String,
+            human: s['human'] as bool,
+          ),
+      ],
+      resumeFrom: game,
+      onSave: onSave,
+    );
+  }
+
+  /// Gespeichertes Spiel fortsetzen (statt neu austeilen).
+  void resume() => _changed();
 
   /// Aus wessen Sicht der Tisch gerade gezeigt wird (dessen Karten unten).
   late int viewer;
@@ -118,9 +162,11 @@ class GameController extends ChangeNotifier {
 
   void _announceChooser() {
     final c = game.chooser;
-    _showBanner(!isMultiplayer && isHuman(c)
-        ? 'Du bestimmst Trumpf'
-        : '${nameOf(c)} bestimmt Trumpf');
+    _showBanner(
+      !isMultiplayer && isHuman(c)
+          ? 'Du bestimmst Trumpf'
+          : '${nameOf(c)} bestimmt Trumpf',
+    );
   }
 
   // ------------------------------------------------------- Weitergeben
@@ -201,6 +247,10 @@ class GameController extends ChangeNotifier {
     _checkHandover();
     notifyListeners();
     _scheduleNext();
+    final save = onSave;
+    if (save != null) {
+      save(game.phase == Phase.gameOver ? null : snapshot());
+    }
   }
 
   void _scheduleNext() {
@@ -220,7 +270,10 @@ class GameController extends ChangeNotifier {
 
   void _botChoose() {
     final seat = game.toAct;
-    final m = bots[seat]!.chooseMode(game.viewFor(seat), canSchieben: game.canSchieben);
+    final m = bots[seat]!.chooseMode(
+      game.viewFor(seat),
+      canSchieben: game.canSchieben,
+    );
     if (m == null) {
       game.schieben();
       _showBanner('${nameOf(seat)} schiebt');
@@ -244,11 +297,13 @@ class GameController extends ChangeNotifier {
       final team = game.weisWinnerTeam;
       if (team != null) {
         final pts = game.roundWeis[team];
-        _showBanner(!isMultiplayer
-            ? (team == viewer % 2
-                ? 'Ihr zählt $pts Weispunkte'
-                : 'Gegner zählen $pts Weispunkte')
-            : '${teamLabel(team)}: $pts Weispunkte');
+        _showBanner(
+          !isMultiplayer
+              ? (team == viewer % 2
+                    ? 'Ihr zählt $pts Weispunkte'
+                    : 'Gegner zählen $pts Weispunkte')
+              : '${teamLabel(team)}: $pts Weispunkte',
+        );
       }
     } else {
       bubbles.clear();

@@ -6,6 +6,7 @@ import 'ui/card_widget.dart';
 import 'ui/game_controller.dart';
 import 'ui/game_screen.dart';
 import 'ui/rules_screen.dart';
+import 'ui/storage.dart';
 import 'ui/theme.dart';
 import 'engine/cards.dart';
 
@@ -54,6 +55,78 @@ class _HomeScreenState extends State<HomeScreen> {
 
   static const seatLabels = ['Unten', 'Rechts', 'Gegenüber', 'Links'];
 
+  /// Angefangenes Spiel, falls vorhanden.
+  Map<String, dynamic>? saved;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final s = await Storage.loadSettings();
+    final g = await Storage.loadGame();
+    if (!mounted) return;
+    setState(() {
+      if (s != null) {
+        target = s['target'] as int? ?? target;
+        multipliers = s['multipliers'] as bool? ?? multipliers;
+        fast = s['fast'] as bool? ?? fast;
+        final lv = s['level'] as String?;
+        level = BotLevel.values.firstWhere(
+          (l) => l.name == lv,
+          orElse: () => level,
+        );
+        together = s['together'] as bool? ?? together;
+        final n = s['names'] as List?;
+        final h = s['humans'] as List?;
+        for (var i = 0; i < 4; i++) {
+          if (n != null && i < n.length) names[i].text = n[i] as String;
+          if (h != null && i < h.length) humans[i] = h[i] as bool;
+        }
+      }
+      saved = g;
+    });
+  }
+
+  void _saveSettings() => Storage.saveSettings({
+    'target': target,
+    'multipliers': multipliers,
+    'fast': fast,
+    'level': level.name,
+    'together': together,
+    'names': [for (final c in names) c.text],
+    'humans': humans,
+  });
+
+  /// «Runde 4 · 312 : 287» für den Weiterspielen-Knopf.
+  String? _savedInfo() {
+    try {
+      final g = saved!['game'] as Map<String, dynamic>;
+      final t = g['totals'] as List;
+      final round = (g['history'] as List).length + 1;
+      return 'Runde $round · Wir ${t[0]} : ${t[1]} Gegner';
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _open(GameScreen screen) async {
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+    final g = await Storage.loadGame();
+    if (mounted) setState(() => saved = g);
+  }
+
+  void _resume() => _open(
+    GameScreen(
+      settings: const SchieberSettings(),
+      level: level,
+      fast: fast,
+      resume: saved,
+    ),
+  );
+
   @override
   void dispose() {
     for (final c in names) {
@@ -68,7 +141,9 @@ class _HomeScreenState extends State<HomeScreen> {
     return [
       for (var i = 0; i < 4; i++)
         SeatSetup(
-          name: names[i].text.trim().isEmpty ? fallback[i] : names[i].text.trim(),
+          name: names[i].text.trim().isEmpty
+              ? fallback[i]
+              : names[i].text.trim(),
           human: i == 0 || humans[i],
         ),
     ];
@@ -84,14 +159,18 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _play() {
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => GameScreen(
-        settings: SchieberSettings(targetPoints: target, useMultipliers: multipliers),
+    _saveSettings();
+    _open(
+      GameScreen(
+        settings: SchieberSettings(
+          targetPoints: target,
+          useMultipliers: multipliers,
+        ),
         level: level,
         fast: fast,
         seats: _seats(),
       ),
-    ));
+    );
   }
 
   @override
@@ -117,37 +196,87 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     const _Logo(),
                     const SizedBox(height: 8),
-                    const Text('Jass',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                            color: JassColors.cream,
-                            fontSize: 48,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 2)),
-                    const Text('Schieber – allein oder mit Freunden',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: JassColors.gold, fontSize: 16)),
+                    const Text(
+                      'Jass',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: JassColors.cream,
+                        fontSize: 48,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 2,
+                      ),
+                    ),
+                    const Text(
+                      'Schieber – allein oder mit Freunden',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: JassColors.gold, fontSize: 16),
+                    ),
                     const SizedBox(height: 28),
                     SegmentedButton<bool>(
                       segments: const [
-                        ButtonSegment(value: false, label: Text('Allein'), icon: Icon(Icons.person)),
-                        ButtonSegment(value: true, label: Text('Mit Freunden'), icon: Icon(Icons.groups)),
+                        ButtonSegment(
+                          value: false,
+                          label: Text('Allein'),
+                          icon: Icon(Icons.person),
+                        ),
+                        ButtonSegment(
+                          value: true,
+                          label: Text('Mit Freunden'),
+                          icon: Icon(Icons.groups),
+                        ),
                       ],
                       selected: {together},
-                      onSelectionChanged: (s) => setState(() => together = s.first),
+                      onSelectionChanged: (s) =>
+                          setState(() => together = s.first),
                     ),
                     if (together) ...[
                       const SizedBox(height: 12),
                       const Text(
-                          'Ein Handy für alle: Es wird vor jedem Zug weitergegeben. '
-                          'Unten und Gegenüber spielen zusammen, Rechts und Links ebenfalls. '
-                          'Leere Plätze übernimmt der Computer.',
-                          style: TextStyle(color: Colors.white70, fontSize: 13)),
+                        'Ein Handy für alle: Es wird vor jedem Zug weitergegeben. '
+                        'Unten und Gegenüber spielen zusammen, Rechts und Links ebenfalls. '
+                        'Leere Plätze übernimmt der Computer.',
+                        style: TextStyle(color: Colors.white70, fontSize: 13),
+                      ),
                       const SizedBox(height: 8),
                       for (var i = 0; i < 4; i++) _seatRow(i),
                     ],
                     const SizedBox(height: 20),
-                    FilledButton(onPressed: _play, child: const Text('Spielen')),
+                    if (saved != null) ...[
+                      FilledButton.icon(
+                        onPressed: _resume,
+                        icon: const Icon(Icons.play_arrow),
+                        label: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text('Weiterspielen'),
+                              if (_savedInfo() != null)
+                                Text(
+                                  _savedInfo()!,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.normal,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      OutlinedButton(
+                        onPressed: _play,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: JassColors.cream,
+                          side: const BorderSide(color: JassColors.cream),
+                        ),
+                        child: const Text('Neues Spiel'),
+                      ),
+                    ] else
+                      FilledButton(
+                        onPressed: _play,
+                        child: const Text('Spielen'),
+                      ),
                     const SizedBox(height: 28),
                     const Text('Punkteziel', style: labelStyle),
                     const SizedBox(height: 6),
@@ -158,7 +287,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         ButtonSegment(value: 2500, label: Text('2500')),
                       ],
                       selected: {target},
-                      onSelectionChanged: (s) => setState(() => target = s.first),
+                      onSelectionChanged: (s) =>
+                          setState(() => target = s.first),
                     ),
                     const SizedBox(height: 16),
                     const Text('Gegner', style: labelStyle),
@@ -166,20 +296,34 @@ class _HomeScreenState extends State<HomeScreen> {
                     SegmentedButton<BotLevel>(
                       showSelectedIcon: false,
                       segments: const [
-                        ButtonSegment(value: BotLevel.anfaenger, label: Text('Anfänger')),
-                        ButtonSegment(value: BotLevel.stammtisch, label: Text('Stammtisch')),
-                        ButtonSegment(value: BotLevel.profi, label: Text('Profi')),
+                        ButtonSegment(
+                          value: BotLevel.anfaenger,
+                          label: Text('Anfänger'),
+                        ),
+                        ButtonSegment(
+                          value: BotLevel.stammtisch,
+                          label: Text('Stammtisch'),
+                        ),
+                        ButtonSegment(
+                          value: BotLevel.profi,
+                          label: Text('Profi'),
+                        ),
                       ],
                       selected: {level},
-                      onSelectionChanged: (s) => setState(() => level = s.first),
+                      onSelectionChanged: (s) =>
+                          setState(() => level = s.first),
                     ),
                     const SizedBox(height: 8),
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Mit Multiplikatoren', style: labelStyle),
+                      title: const Text(
+                        'Mit Multiplikatoren',
+                        style: labelStyle,
+                      ),
                       subtitle: const Text(
-                          'Herz/Karo ×1, Pik/Kreuz ×2, Obenabe/Undenufe ×3',
-                          style: TextStyle(color: Colors.white60, fontSize: 12)),
+                        'Herz/Karo ×1, Pik/Kreuz ×2, Obenabe/Undenufe ×3',
+                        style: TextStyle(color: Colors.white60, fontSize: 12),
+                      ),
                       value: multipliers,
                       onChanged: (v) => setState(() => multipliers = v),
                     ),
@@ -192,9 +336,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 8),
                     TextButton(
                       onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const RulesScreen())),
-                      child: const Text('Regeln & Info',
-                          style: TextStyle(color: JassColors.gold)),
+                        MaterialPageRoute(builder: (_) => const RulesScreen()),
+                      ),
+                      child: const Text(
+                        'Regeln & Info',
+                        style: TextStyle(color: JassColors.gold),
+                      ),
                     ),
                   ],
                 ),
@@ -212,46 +359,63 @@ extension on _HomeScreenState {
     final isHuman = i == 0 || humans[i];
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(children: [
-        SizedBox(
-          width: 82,
-          child: Text(_HomeScreenState.seatLabels[i],
-              style: const TextStyle(color: JassColors.gold, fontSize: 13)),
-        ),
-        Expanded(
-          child: TextField(
-            controller: names[i],
-            enabled: isHuman,
-            maxLength: 12,
-            style: const TextStyle(color: JassColors.cream),
-            decoration: InputDecoration(
-              isDense: true,
-              counterText: '',
-              hintText: isHuman ? 'Name' : 'Computer',
-              border: const OutlineInputBorder(),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 82,
+            child: Text(
+              _HomeScreenState.seatLabels[i],
+              style: const TextStyle(color: JassColors.gold, fontSize: 13),
             ),
           ),
-        ),
-        const SizedBox(width: 8),
-        SizedBox(
-          width: 110,
-          child: i == 0
-              ? const Text('Mensch', textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white60))
-              : SegmentedButton<bool>(
-                  showSelectedIcon: false,
-                  style: const ButtonStyle(visualDensity: VisualDensity.compact),
-                  segments: const [
-                    ButtonSegment(value: true, icon: Icon(Icons.person), tooltip: 'Mensch'),
-                    ButtonSegment(value: false, icon: Icon(Icons.smart_toy), tooltip: 'Computer'),
-                  ],
-                  selected: {isHuman},
-                  onSelectionChanged: (s) =>
-                      // ignore: invalid_use_of_protected_member
-                      setState(() => humans[i] = s.first),
-                ),
-        ),
-      ]),
+          Expanded(
+            child: TextField(
+              controller: names[i],
+              enabled: isHuman,
+              maxLength: 12,
+              style: const TextStyle(color: JassColors.cream),
+              decoration: InputDecoration(
+                isDense: true,
+                counterText: '',
+                hintText: isHuman ? 'Name' : 'Computer',
+                border: const OutlineInputBorder(),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 110,
+            child: i == 0
+                ? const Text(
+                    'Mensch',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white60),
+                  )
+                : SegmentedButton<bool>(
+                    showSelectedIcon: false,
+                    style: const ButtonStyle(
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    segments: const [
+                      ButtonSegment(
+                        value: true,
+                        icon: Icon(Icons.person),
+                        tooltip: 'Mensch',
+                      ),
+                      ButtonSegment(
+                        value: false,
+                        icon: Icon(Icons.smart_toy),
+                        tooltip: 'Computer',
+                      ),
+                    ],
+                    selected: {isHuman},
+                    onSelectionChanged: (s) =>
+                        // ignore: invalid_use_of_protected_member
+                        setState(() => humans[i] = s.first),
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -268,17 +432,20 @@ class _Logo extends StatelessWidget {
     ];
     return SizedBox(
       height: 120,
-      child: Stack(alignment: Alignment.bottomCenter, children: [
-        for (var i = 0; i < 3; i++)
-          Transform.rotate(
-            angle: (i - 1) * 0.22,
-            alignment: Alignment.bottomCenter,
-            child: Transform.translate(
-              offset: Offset((i - 1) * 30.0, 0),
-              child: CardImage(card: cards[i], width: 66),
+      child: Stack(
+        alignment: Alignment.bottomCenter,
+        children: [
+          for (var i = 0; i < 3; i++)
+            Transform.rotate(
+              angle: (i - 1) * 0.22,
+              alignment: Alignment.bottomCenter,
+              child: Transform.translate(
+                offset: Offset((i - 1) * 30.0, 0),
+                child: CardImage(card: cards[i], width: 66),
+              ),
             ),
-          ),
-      ]),
+        ],
+      ),
     );
   }
 }

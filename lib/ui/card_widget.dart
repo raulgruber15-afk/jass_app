@@ -7,7 +7,12 @@ const double cardAspect = 500 / 809;
 
 /// Zeigt eine Karte (oder die Rückseite, wenn [card] null ist).
 class CardImage extends StatelessWidget {
-  const CardImage({super.key, this.card, required this.width, this.dimmed = false});
+  const CardImage({
+    super.key,
+    this.card,
+    required this.width,
+    this.dimmed = false,
+  });
 
   final JassCard? card;
   final double width;
@@ -33,7 +38,10 @@ class CardImage extends StatelessWidget {
       ),
       child: dimmed
           ? ColorFiltered(
-              colorFilter: const ColorFilter.mode(Colors.black45, BlendMode.srcATop),
+              colorFilter: const ColorFilter.mode(
+                Colors.black45,
+                BlendMode.srcATop,
+              ),
               child: img,
             )
           : img,
