@@ -8,7 +8,7 @@
 enum CardDeck { schweizer, franzoesisch }
 
 /// Schweizer Blatt in der App anbieten? Vorerst aus, bis ein passendes
-/// Kartenbild gefunden ist. Seit 24.11.2026 mit Rauls Set «Scharf».
+/// Kartenbild gefunden ist. Seit 24.11.2026 mit Rauls Set «Harmonisiert».
 const bool schweizerBlattFreigegeben = true;
 
 /// Aktuell gewähltes Blatt (Einstellung auf der Startseite).
