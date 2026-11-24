@@ -20,6 +20,8 @@ ThemeData buildTheme() {
   return ThemeData(
     colorScheme: scheme,
     useMaterial3: true,
+    // Einfacher Tipp-Effekt ohne Shader (lädt schneller, auch im Browser).
+    splashFactory: InkRipple.splashFactory,
     scaffoldBackgroundColor: JassColors.felt,
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
