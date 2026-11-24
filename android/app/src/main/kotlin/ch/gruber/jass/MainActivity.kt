@@ -1,4 +1,4 @@
-package ch.jassmobile.jass
+package ch.gruber.jass
 
 import io.flutter.embedding.android.FlutterActivity
 

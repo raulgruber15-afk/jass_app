@@ -11,7 +11,7 @@
 #     GCLOUD_SERVICE_ACCOUNT_CREDENTIALS (JSON des Dienstkontos)
 
 definitions:
-  bundle_id: &bundle_id ch.jassmobile.jass   # PLATZHALTER, siehe Anleitung
+  bundle_id: &bundle_id ch.gruber.jass   # festgelegt von Raul, nie mehr ändern
 
 workflows:
   # ---------------------------------------------------------------- Tests
@@ -49,7 +49,7 @@ workflows:
         # Versionsnummer automatisch hochzählen (Play Store verlangt jedes Mal eine höhere)
         script: |
           flutter build appbundle --release \
-            --build-number=$(($(google-play get-latest-build-number --package-name "ch.jassmobile.jass" --tracks=internal 2>/dev/null || echo 0) + 1))
+            --build-number=$(($(google-play get-latest-build-number --package-name "ch.gruber.jass" --tracks=internal 2>/dev/null || echo 0) + 1))
     artifacts:
       - build/app/outputs/bundle/release/*.aab
     publishing:

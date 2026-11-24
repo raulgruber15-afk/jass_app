@@ -20,7 +20,7 @@ fun signingValue(key: String, env: String): String? =
     keystoreProperties.getProperty(key) ?: System.getenv(env)
 
 android {
-    namespace = "ch.jassmobile.jass"
+    namespace = "ch.gruber.jass"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -30,9 +30,9 @@ android {
     }
 
     defaultConfig {
-        // App-Kennung im Play Store. PLATZHALTER: vor dem ersten Upload festlegen,
+        // App-Kennung im Play Store (festgelegt: ch.gruber.jass).
         // danach nie mehr ändern (siehe docs/STORE_ANLEITUNG.md).
-        applicationId = "ch.jassmobile.jass"
+        applicationId = "ch.gruber.jass"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

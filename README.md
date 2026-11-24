@@ -47,4 +47,4 @@ dart run flutter_launcher_icons  # App-Symbole neu erzeugen
 
 ## Store
 
-Siehe [docs/STORE_ANLEITUNG.md](docs/STORE_ANLEITUNG.md). Bundle-ID ist noch ein Platzhalter: `ch.jassmobile.jass`.
+Siehe [docs/STORE_ANLEITUNG.md](docs/STORE_ANLEITUNG.md). Bundle-ID (fest, nie mehr ändern): `ch.gruber.jass`.

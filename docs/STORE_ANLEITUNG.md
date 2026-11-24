@@ -19,7 +19,7 @@ Zeitbedarf grob: 2 bis 3 Abende für Konten und Einrichtung, dazu Wartezeiten (K
 
 ## Schritt 1: Zwei Entscheide, die man später nicht mehr ändern kann
 
-1. **App-Kennung (Bundle-ID).** Im Moment steht der Platzhalter `ch.jassmobile.jass` drin. Diese Kennung ist für immer an die App gebunden. Üblich ist eine umgedrehte Webadresse, z. B. `ch.gruber.jass`. Eine eigene Webseite braucht man dafür nicht. **Sag Claude, welche Kennung du willst**, Claude ändert sie dann an allen Stellen.
+1. **App-Kennung (Bundle-ID): `ch.gruber.jass`** ✓ festgelegt. Diese Kennung ist für immer an die App gebunden und überall im Projekt eingetragen. Verwende genau diese bei Apple (Schritt 4.3) und Google.
 2. **App-Name im Store.** «Jass» ist sehr wahrscheinlich schon vergeben. Vorschläge: «Jass offline – Schieber», «Stammtisch-Jass», «Jass am Tisch». Auf dem Handy-Bildschirm steht trotzdem kurz «Jass».
 
 ## Schritt 2: Code auf GitHub (empfohlen)
@@ -27,7 +27,7 @@ Zeitbedarf grob: 2 bis 3 Abende für Konten und Einrichtung, dazu Wartezeiten (K
 Damit Codemagic und GitHub die App bauen können, muss der Code in einem GitHub-Repository liegen.
 
 1. Auf <https://github.com> anmelden (Konto `raulgruber15-afk` besteht schon).
-2. Oben rechts **+ → New repository**, Name z. B. `jass-app`, **Private** wählen, ohne README erstellen.
+2. Oben rechts **+ → New repository**, Name z. B. `jass_app`, **Private** wählen, ohne README erstellen.
 3. Claude Bescheid geben. Claude verknüpft das Repository mit dem Projekt und lädt den Code hoch.
 
 Danach baut GitHub bei jeder Änderung automatisch eine **Android-Test-App** (APK). Du findest sie unter *Actions → neuester Lauf → Artifacts → jass-android-apk*. Die APK kannst du direkt aufs Android-Handy laden und installieren (Installation aus «unbekannten Quellen» erlauben).
@@ -54,7 +54,7 @@ Danach baut GitHub bei jeder Änderung automatisch eine **Android-Test-App** (AP
 
 1. **Apple-ID mit Zwei-Faktor-Schutz** (hast du vermutlich schon).
 2. **Developer Program beitreten:** <https://developer.apple.com/programs/enroll/> → als **Einzelperson** (Individual) → 99 USD pro Jahr. Am einfachsten über die App «Apple Developer» auf einem iPhone. Freischaltung dauert meist 1 bis 2 Tage.
-3. **App-ID registrieren:** <https://developer.apple.com/account/resources/identifiers> → «+» → App IDs → App → Bundle-ID genau wie in Schritt 1.
+3. **App-ID registrieren:** <https://developer.apple.com/account/resources/identifiers> → «+» → App IDs → App → Bundle-ID `ch.gruber.jass`.
 4. **App in App Store Connect anlegen:** <https://appstoreconnect.apple.com> → Apps → «+» → Neue App → Plattform iOS, Name, Sprache Deutsch, Bundle-ID aus der Liste, SKU z. B. `jass-001`.
    - Danach unter *App-Informationen* die **Apple ID** (eine Zahl) notieren und Claude geben. Sie kommt in `codemagic.yaml`.
 5. **API-Schlüssel für Codemagic:** App Store Connect → Benutzer und Zugriff → Integrationen → App Store Connect API → «+» → Name «Codemagic», Zugriff **App Manager** → Schlüssel (.p8-Datei) herunterladen. **Die Datei kann man nur einmal herunterladen!** Ausserdem «Issuer ID» und «Key ID» notieren.
@@ -69,7 +69,7 @@ Danach baut GitHub bei jeder Änderung automatisch eine **Android-Test-App** (AP
 
 ## Schritt 5: Codemagic einrichten (baut ohne Mac)
 
-1. <https://codemagic.io> → mit GitHub anmelden → Repository `jass-app` hinzufügen. Codemagic erkennt die Datei `codemagic.yaml` automatisch.
+1. <https://codemagic.io> → mit GitHub anmelden → Repository `jass_app` hinzufügen. Codemagic erkennt die Datei `codemagic.yaml` automatisch.
 2. **Teams → Integrations → App Store Connect:** API-Schlüssel aus Schritt 4.5 eintragen (Issuer ID, Key ID, .p8-Datei), Name genau `JassAppStore`.
 3. **Code signing identities:**
    - *iOS certificates:* «Generate certificate» (Codemagic erstellt das Apple-Zertifikat für dich).
@@ -93,8 +93,9 @@ Vor dem Hochladen muss geklärt sein, dass du das Vintage-Kartenset in einer ver
 
 ## Kurz-Checkliste
 
-- [ ] Bundle-ID und Store-Name festgelegt und Claude mitgeteilt
-- [ ] GitHub-Repository angelegt und mit dem Projekt verknüpft
+- [x] Bundle-ID festgelegt: `ch.gruber.jass`
+- [ ] Store-Name festgelegt
+- [x] GitHub-Repository angelegt und mit dem Projekt verknüpft
 - [ ] Google-Play-Konto (25 USD) eröffnet und verifiziert
 - [ ] Android-Upload-Schlüssel erstellt und doppelt gesichert
 - [ ] 12 Android-Testpersonen gefunden
